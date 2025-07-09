@@ -18,7 +18,7 @@ const metadata = {
   icons: ["https://avatars.githubusercontent.com/u/179229932"],
 };
 
-const modal = createAppKit({
+export const modal = createAppKit({
   adapters: [wagmiAdapter],
   projectId,
   networks: [monadTestnet],
@@ -28,7 +28,7 @@ const modal = createAppKit({
     socials: false,
     email: false,
   },
-  themeMode: "light",
+  themeMode: "dark", // Changed to dark to match the app's theme
 });
 
 function ContextProvider({ children, cookies }: { children: ReactNode; cookies: string | null }) {

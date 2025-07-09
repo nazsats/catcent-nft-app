@@ -1,5 +1,5 @@
 "use client";
-import { useAccount, useWriteContract, useReadContract, useSwitchChain, useEstimateGas } from "wagmi";
+import { useAccount, useWriteContract, useReadContracts, useSwitchChain, useEstimateGas, useBalance, useDisconnect } from "wagmi";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import CatcentNFTABI from "./CatcentNFT.json";
@@ -9,15 +9,18 @@ import { monadTestnet } from "@reown/appkit/networks";
 import { contractAddress } from "@/config";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import JSConfetti from "js-confetti";
-import { encodeFunctionData } from "viem"; // Import encodeFunctionData from viem
+import { encodeFunctionData, type Abi } from "viem";
+import { modal } from "@/context";
+import { FaLock, FaUnlock } from "react-icons/fa";
 
-const confetti = new JSConfetti();
+// Explicitly type the ABI to ensure compatibility with wagmi
+const typedCatcentNFTABI = CatcentNFTABI as Abi;
 
 export default function Home() {
   const { isConnected, address, chain } = useAccount();
   const { writeContractAsync, isPending } = useWriteContract();
   const { switchChain } = useSwitchChain();
+  const { disconnect } = useDisconnect();
   const [numberOfTokens, setNumberOfTokens] = useState(1);
   const [isInputValid, setIsInputValid] = useState(true);
   const [vipMerkleProof, setVipMerkleProof] = useState<string[]>([]);
@@ -25,164 +28,83 @@ export default function Home() {
   const [isFetchingProofs, setIsFetchingProofs] = useState(false);
   const [currentPhase, setCurrentPhase] = useState<string>("");
 
-  // Contract data
-  const { data: isPublicMintActive, isLoading: publicLoading, error: publicError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "isPublicMintActive",
-    query: { staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: isVipWhitelistMintActive, isLoading: vipWhitelistLoading, error: vipWhitelistError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "isVipWhitelistMintActive",
-    query: { staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: isRegularWhitelistMintActive, isLoading: regularWhitelistLoading, error: regularWhitelistError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "isRegularWhitelistMintActive",
-    query: { staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: isPaused, isLoading: pausedLoading, error: pausedError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "isPaused",
-    query: { staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: mintPrice, isLoading: priceLoading, error: priceError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "mintPrice",
-    query: { staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: totalSupply, isLoading: totalSupplyLoading, error: totalSupplyError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "totalSupply",
-    query: { staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: maxSupply, isLoading: maxSupplyLoading, error: maxSupplyError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "maxSupply",
-    query: { staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: balance, isLoading: balanceLoading, error: balanceError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    query: { enabled: !!address, staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: vipWhitelistMinted, isLoading: vipWhitelistMintedLoading, error: vipWhitelistMintedError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "vipWhitelistMinted",
-    args: address ? [address] : undefined,
-    query: { enabled: !!address, staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: regularWhitelistMinted, isLoading: regularWhitelistMintedLoading, error: regularWhitelistMintedError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "regularWhitelistMinted",
-    args: address ? [address] : undefined,
-    query: { enabled: !!address, staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: vipWhitelistStartTime, isLoading: vipStartLoading, error: vipStartError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "vipWhitelistStartTime",
-    query: { staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: vipWhitelistEndTime, isLoading: vipEndLoading, error: vipEndError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "vipWhitelistEndTime",
-    query: { staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: regularWhitelistStartTime, isLoading: regularStartLoading, error: regularStartError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "regularWhitelistStartTime",
-    query: { staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: regularWhitelistEndTime, isLoading: regularEndLoading, error: regularEndError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "regularWhitelistEndTime",
-    query: { staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: publicMintStartTime, isLoading: publicStartLoading, error: publicStartError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "publicMintStartTime",
-    query: { staleTime: 30_000, retry: 3, retryDelay: 1000 },
-  });
-  const { data: publicMintEndTime, isLoading: publicEndLoading, error: publicEndError } = useReadContract({
-    address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
-    functionName: "publicMintEndTime",
-    query: { staleTime: 30_000, retry: 3, retryDelay: 1000 },
+  // Define contract calls with explicit types
+  const contractCalls = [
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "isPublicMintActive" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "isVipWhitelistMintActive" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "isRegularWhitelistMintActive" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "isPaused" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "mintPrice" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "totalSupply" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "maxSupply" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "balanceOf", args: address ? [address] : undefined },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "vipWhitelistMinted", args: address ? [address] : undefined },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "regularWhitelistMinted", args: address ? [address] : undefined },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "vipWhitelistStartTime" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "vipWhitelistEndTime" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "regularWhitelistStartTime" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "regularWhitelistEndTime" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "publicMintStartTime" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "publicMintEndTime" },
+  ] as const;
+
+  const { data: contractData, isLoading, error: contractError } = useReadContracts({
+    contracts: contractCalls,
+    query: { staleTime: 30_000, retry: 3, retryDelay: 1000, enabled: true },
   });
 
-  const isLoading =
-    publicLoading ||
-    vipWhitelistLoading ||
-    regularWhitelistLoading ||
-    pausedLoading ||
-    priceLoading ||
-    balanceLoading ||
-    totalSupplyLoading ||
-    maxSupplyLoading ||
-    vipWhitelistMintedLoading ||
-    regularWhitelistMintedLoading ||
-    vipStartLoading ||
-    vipEndLoading ||
-    regularStartLoading ||
-    regularEndLoading ||
-    publicStartLoading ||
-    publicEndLoading;
+  // Explicitly type the contract data results to avoid `unknown`
+  const [
+    isPublicMintActive = false as boolean,
+    isVipWhitelistMintActive = false as boolean,
+    isRegularWhitelistMintActive = false as boolean,
+    isPaused = false as boolean,
+    mintPrice = undefined as bigint | undefined,
+    totalSupply = undefined as bigint | undefined,
+    maxSupply = undefined as bigint | undefined,
+    balance = undefined as bigint | undefined,
+    vipWhitelistMinted = undefined as bigint | undefined,
+    regularWhitelistMinted = undefined as bigint | undefined,
+    vipWhitelistStartTime = undefined as bigint | undefined,
+    vipWhitelistEndTime = undefined as bigint | undefined,
+    regularWhitelistStartTime = undefined as bigint | undefined,
+    regularWhitelistEndTime = undefined as bigint | undefined,
+    publicMintStartTime = undefined as bigint | undefined,
+    publicMintEndTime = undefined as bigint | undefined,
+  ] = (contractData || []).map((result) => result.result);
+
+  // Fetch user balance
+  const { data: userBalance } = useBalance({
+    address: address as `0x${string}`,
+    query: { enabled: !!address },
+  });
 
   // Debug contract data
   useEffect(() => {
-    console.log("Contract Data Debug:", {
-      isPublicMintActive: isPublicMintActive ?? "undefined",
-      isVipWhitelistMintActive: isVipWhitelistMintActive ?? "undefined",
-      isRegularWhitelistMintActive: isRegularWhitelistMintActive ?? "undefined",
-      isPaused: isPaused ?? "undefined",
-      mintPrice: mintPrice ? mintPrice.toString() : "undefined",
-      totalSupply: totalSupply ? totalSupply.toString() : "undefined",
-      maxSupply: maxSupply ? maxSupply.toString() : "undefined",
-      balance: balance ? balance.toString() : "undefined",
-      vipWhitelistMinted: vipWhitelistMinted ? vipWhitelistMinted.toString() : "undefined",
-      regularWhitelistMinted: regularWhitelistMinted ? regularWhitelistMinted.toString() : "undefined",
-      vipWhitelistStartTime: vipWhitelistStartTime ? vipWhitelistStartTime.toString() : "undefined",
-      vipWhitelistEndTime: vipWhitelistEndTime ? vipWhitelistEndTime.toString() : "undefined",
-      regularWhitelistStartTime: regularWhitelistStartTime ? regularWhitelistStartTime.toString() : "undefined",
-      regularWhitelistEndTime: regularWhitelistEndTime ? regularWhitelistEndTime.toString() : "undefined",
-      publicMintStartTime: publicMintStartTime ? publicMintStartTime.toString() : "undefined",
-      publicMintEndTime: publicMintEndTime ? publicMintEndTime.toString() : "undefined",
-      errors: {
-        publicError: publicError?.message ?? "none",
-        vipWhitelistError: vipWhitelistError?.message ?? "none",
-        regularWhitelistError: regularWhitelistError?.message ?? "none",
-        pausedError: pausedError?.message ?? "none",
-        priceError: priceError?.message ?? "none",
-        totalSupplyError: totalSupplyError?.message ?? "none",
-        maxSupplyError: maxSupplyError?.message ?? "none",
-        balanceError: balanceError?.message ?? "none",
-        vipWhitelistMintedError: vipWhitelistMintedError?.message ?? "none",
-        regularWhitelistMintedError: regularWhitelistMintedError?.message ?? "none",
-        vipStartError: vipStartError?.message ?? "none",
-        vipEndError: vipEndError?.message ?? "none",
-        regularStartError: regularStartError?.message ?? "none",
-        regularEndError: regularEndError?.message ?? "none",
-        publicStartError: publicStartError?.message ?? "none",
-        publicEndError: publicEndError?.message ?? "none",
-      },
-    });
+    if (process.env.NODE_ENV === "development") {
+      console.log("Contract Data Debug:", {
+        isPublicMintActive,
+        isVipWhitelistMintActive,
+        isRegularWhitelistMintActive,
+        isPaused,
+        mintPrice: mintPrice ? mintPrice.toString() : "undefined",
+        totalSupply: totalSupply ? totalSupply.toString() : "undefined",
+        maxSupply: maxSupply ? maxSupply.toString() : "undefined",
+        balance: balance ? balance.toString() : "undefined",
+        vipWhitelistMinted: vipWhitelistMinted ? vipWhitelistMinted.toString() : "undefined",
+        regularWhitelistMinted: regularWhitelistMinted ? regularWhitelistMinted.toString() : "undefined",
+        vipWhitelistStartTime: vipWhitelistStartTime ? vipWhitelistStartTime.toString() : "undefined",
+        vipWhitelistEndTime: vipWhitelistEndTime ? vipWhitelistEndTime.toString() : "undefined",
+        regularWhitelistStartTime: regularWhitelistStartTime ? regularWhitelistStartTime.toString() : "undefined",
+        regularWhitelistEndTime: regularWhitelistEndTime ? regularWhitelistEndTime.toString() : "undefined",
+        publicMintStartTime: publicMintStartTime ? publicMintStartTime.toString() : "undefined",
+        publicMintEndTime: publicMintEndTime ? publicMintEndTime.toString() : "undefined",
+        contractError: contractError?.message ?? "none",
+      });
+    }
   }, [
+    contractData,
+    contractError,
     isPublicMintActive,
     isVipWhitelistMintActive,
     isRegularWhitelistMintActive,
@@ -199,22 +121,6 @@ export default function Home() {
     regularWhitelistEndTime,
     publicMintStartTime,
     publicMintEndTime,
-    publicError,
-    vipWhitelistError,
-    regularWhitelistError,
-    pausedError,
-    priceError,
-    totalSupplyError,
-    maxSupplyError,
-    balanceError,
-    vipWhitelistMintedError,
-    regularWhitelistMintedError,
-    vipStartError,
-    vipEndError,
-    regularStartError,
-    regularEndError,
-    publicStartError,
-    publicEndError,
   ]);
 
   // Fetch Merkle proofs
@@ -242,10 +148,15 @@ export default function Home() {
 
   // Determine phase eligibility
   const now = Math.floor(Date.now() / 1000);
-  const isVipPhaseActive = Number(vipWhitelistStartTime || 1767225600) <= now && now < Number(vipWhitelistEndTime || 1767229200);
-  const isRegularPhaseActive = Number(regularWhitelistStartTime || 1767232800) <= now && now < Number(regularWhitelistEndTime || 1767236400);
-  const isPublicPhaseActive =
-    Number(publicMintStartTime || 1767240000) <= now && (now < Number(publicMintEndTime || 1771468740) || Number(totalSupply || 0) < Number(maxSupply || 0));
+  const isVipPhaseActive = vipWhitelistStartTime && vipWhitelistEndTime
+    ? Number(vipWhitelistStartTime) <= now && now < Number(vipWhitelistEndTime)
+    : false;
+  const isRegularPhaseActive = regularWhitelistStartTime && regularWhitelistEndTime
+    ? Number(regularWhitelistStartTime) <= now && now < Number(regularWhitelistEndTime)
+    : false;
+  const isPublicPhaseActive = publicMintStartTime && publicMintEndTime
+    ? Number(publicMintStartTime) <= now && (now < Number(publicMintEndTime) || Number(totalSupply || 0) < Number(maxSupply || 0))
+    : false;
 
   const isVipEligible = Boolean(
     (isVipWhitelistMintActive || isVipPhaseActive) &&
@@ -290,16 +201,28 @@ export default function Home() {
       : [];
   const mintData = mintPrice && numTokens >= 1 && numTokens <= 10 && isConnected
     ? encodeFunctionData({
-        abi: CatcentNFTABI,
+        abi: typedCatcentNFTABI,
         functionName: "mint",
         args: [numTokens, merkleProof],
       })
     : undefined;
+  const isGasEstimationEnabled = Boolean(
+    mintPrice !== undefined &&
+    numTokens >= 1 &&
+    numTokens <= 10 &&
+    isConnected &&
+    ((isVipPhaseActive && isVipWhitelistMintActive && vipMerkleProof.length > 0) ||
+     (isRegularPhaseActive && isRegularWhitelistMintActive && (vipMerkleProof.length > 0 || regularMerkleProof.length > 0)) ||
+     (isPublicPhaseActive && isPublicMintActive))
+  );
+
   const { data: gasEstimate, error: gasError } = useEstimateGas({
     to: contractAddress as `0x${string}`,
     data: mintData,
-    value: mintPrice ? BigInt(mintPrice.toString()) * BigInt(numTokens)  : undefined,
-    query: { enabled: !!mintPrice && numTokens >= 1 && numTokens <= 10 && isConnected },
+    value: mintPrice ? BigInt(mintPrice.toString()) * BigInt(numTokens) : undefined,
+    query: {
+      enabled: isGasEstimationEnabled,
+    },
   });
 
   // Prompt network switch on wrong network
@@ -320,37 +243,57 @@ export default function Home() {
     if (isConnected && address) {
       addDoc(collection(db, "walletConnections"), {
         walletAddress: address,
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         event: "wallet_connected",
       }).catch((err) => console.error("Error logging wallet connection:", err));
       toast.success("Wallet connected successfully!", { position: "top-right", theme: "dark" });
     }
   }, [isConnected, address]);
 
+  // Log wallet disconnection to Firebase
+  const handleDisconnect = async () => {
+    try {
+      disconnect();
+      if (address) {
+        await addDoc(collection(db, "walletConnections"), {
+          walletAddress: address,
+          timestamp: Date.now(),
+          event: "wallet_disconnected",
+        });
+      }
+      toast.info("Wallet disconnected.", { position: "top-right", theme: "dark" });
+    } catch (error: unknown) {
+      console.error("Disconnect Error:", error);
+      toast.error("Failed to disconnect wallet.", { position: "top-right", theme: "dark" });
+    }
+  };
+
   // Debug eligibility
   useEffect(() => {
-    console.log("Eligibility Debug:", {
-      isVipEligible,
-      isVipWhitelistMintActive: isVipWhitelistMintActive ?? "undefined",
-      isVipPhaseActive,
-      vipMerkleProof,
-      vipWhitelistMinted: Number(vipWhitelistMinted ?? 0),
-      vipWhitelistStartTime: Number(vipWhitelistStartTime ?? 0),
-      vipWhitelistEndTime: Number(vipWhitelistEndTime ?? 0),
-      isRegularEligible,
-      isRegularWhitelistMintActive: isRegularWhitelistMintActive ?? "undefined",
-      isRegularPhaseActive,
-      regularMerkleProof,
-      regularWhitelistMinted: Number(regularWhitelistMinted ?? 0),
-      regularWhitelistStartTime: Number(regularWhitelistStartTime ?? 0),
-      regularWhitelistEndTime: Number(regularWhitelistEndTime ?? 0),
-      isPublicEligible,
-      isPublicMintActive: isPublicMintActive ?? "undefined",
-      isPublicPhaseActive,
-      publicMintStartTime: Number(publicMintStartTime ?? 0),
-      publicMintEndTime: Number(publicMintEndTime ?? 0),
-      now,
-    });
+    if (process.env.NODE_ENV === "development") {
+      console.log("Eligibility Debug:", {
+        isVipEligible,
+        isVipWhitelistMintActive,
+        isVipPhaseActive,
+        vipMerkleProof,
+        vipWhitelistMinted: Number(vipWhitelistMinted ?? 0),
+        vipWhitelistStartTime: Number(vipWhitelistStartTime ?? 0),
+        vipWhitelistEndTime: Number(vipWhitelistEndTime ?? 0),
+        isRegularEligible,
+        isRegularWhitelistMintActive,
+        isRegularPhaseActive,
+        regularMerkleProof,
+        regularWhitelistMinted: Number(regularWhitelistMinted ?? 0),
+        regularWhitelistStartTime: Number(regularWhitelistStartTime ?? 0),
+        regularWhitelistEndTime: Number(regularWhitelistEndTime ?? 0),
+        isPublicEligible,
+        isPublicMintActive,
+        isPublicPhaseActive,
+        publicMintStartTime: Number(publicMintStartTime ?? 0),
+        publicMintEndTime: Number(publicMintEndTime ?? 0),
+        now,
+      });
+    }
   }, [
     isVipEligible,
     isVipWhitelistMintActive,
@@ -394,7 +337,6 @@ export default function Home() {
     useEffect(() => {
       const updateTimer = () => {
         const now = Math.floor(Date.now() / 1000);
-        console.log(`[${phase}] Now: ${now}, Start: ${startTime}, End: ${endTime}`);
         if (!startTime || !endTime) {
           setTimeLeft(`${phase} Phase: Not Set`);
           return;
@@ -422,46 +364,52 @@ export default function Home() {
       updateTimer();
       const interval = setInterval(updateTimer, 1000);
       return () => clearInterval(interval);
-    }, [startTime, endTime, phase]); // Removed totalSupply, maxSupply from dependencies
-    return <p className="text-xs text-cyan-300 pl-10">{timeLeft}</p>;
+    }, [startTime, endTime, phase]);
+    return <span className="text-xs text-cyan-300 pl-10">{timeLeft}</span>;
   }
 
   // Error handling
-  const handleMintError = async (error: unknown, mintPrice: bigint, numberOfTokens: number) => {
+  const handleMintError = async (error: unknown, mintPrice: bigint | undefined, numberOfTokens: number) => {
     const errorMap: Record<string, string> = {
-      "insufficient funds": "Insufficient MONAD for minting. Get testnet tokens from the Monad faucet.",
-      "user rejected": "Transaction rejected by user.",
-      "denied": "Transaction rejected by user.",
+      "insufficient funds": "Insufficient MONAD balance. Get testnet tokens from the Monad faucet.",
+      "user rejected": "Transaction rejected.",
+      "denied": "Transaction rejected.",
       "Exceeds max supply": "Minting would exceed max supply.",
-      "Insufficient payment": `Insufficient payment. Required: ${(mintPrice * BigInt(numberOfTokens) / BigInt(1e18)).toString()} MONAD`,
+      "Insufficient payment": `Insufficient payment. Required: ${(mintPrice && mintPrice * BigInt(numberOfTokens) / BigInt(1e18))?.toString() ?? "0"} MONAD`,
       "Not VIP whitelisted": "You are not VIP whitelisted.",
       "Not whitelisted for Regular phase": "You are not whitelisted for the Regular phase.",
       "VIP whitelist already minted": "You have already minted in the VIP phase.",
-      "Regular whitelist already minted": "You have already minted in the Regular phase.",
-      "Minting not active": "Minting is not active. Check phase times or contract state.",
-      "Contract is paused": "Minting is currently paused.",
-      "network": "Network error. Please check your connection and try again.",
-      "ContractFunctionExecutionError": "Contract execution failed. Please try again or contact support.",
+      "RegularWhitelistMinted": "You have already minted in the Regular phase.",
+      "Minting not active": "Minting is not active. Check phase times.",
+      "Contract is paused": "Minting is paused.",
+      "network": "Network error. Please check your connection.",
+      "ContractFunctionExecutionError": "Contract execution failed. Try again or contact support.",
     };
-    const errorMessage = error instanceof Error && Object.keys(errorMap).find((key) => error.message.includes(key))
-      ? errorMap[error.message]
-      : `Failed to mint NFT: ${error instanceof Error ? error.message : "Unknown error"}`;
+
+    let errorMessage = "An unexpected error occurred. Please try again.";
+    if (error instanceof Error) {
+      const foundKey = Object.keys(errorMap).find((k) => error.message.toLowerCase().includes(k.toLowerCase()));
+      if (foundKey) {
+        errorMessage = errorMap[foundKey];
+      }
+    }
+
     toast.error(errorMessage, { position: "top-right", theme: "dark", autoClose: 5000 });
     await addDoc(collection(db, "errors"), {
-      walletAddress: address || "unknown",
+      walletAddress: address || "0x0",
       error: error instanceof Error ? error.message : "Unknown error",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       event: "minting_error",
     });
   };
 
   const handleMint = async () => {
     if (isPaused) {
-      toast.error("Minting is currently paused.", { position: "top-right", theme: "dark" });
+      toast.error("Minting is paused.", { position: "top-right", theme: "dark" });
       return;
     }
     if (!isVipPhaseActive && !isRegularPhaseActive && !isPublicPhaseActive) {
-      toast.error("No minting phase is active. Check phase times.", { position: "top-right", theme: "dark" });
+      toast.error("No minting phase is active.", { position: "top-right", theme: "dark" });
       return;
     }
     if (isVipPhaseActive && isVipWhitelistMintActive && !isVipEligible) {
@@ -478,13 +426,17 @@ export default function Home() {
     }
     if ((isVipPhaseActive && isVipWhitelistMintActive) || (isRegularPhaseActive && isRegularWhitelistMintActive)) {
       if (numberOfTokens !== 1) {
-        toast.error("Can only mint 1 NFT in whitelist phases", { position: "top-right", theme: "dark" });
+        toast.error("Can only mint 1 NFT in whitelist phases.", { position: "top-right", theme: "dark" });
         setIsInputValid(false);
         return;
       }
     } else if (isPublicPhaseActive && isPublicMintActive && (numberOfTokens < 1 || numberOfTokens > 10)) {
-      toast.error("Number of tokens must be between 1 and 10 in public phase", { position: "top-right", theme: "dark" });
+      toast.error("Number of tokens must be between 1 and 10.", { position: "top-right", theme: "dark" });
       setIsInputValid(false);
+      return;
+    }
+    if (userBalance && mintPrice && BigInt(userBalance.value) < BigInt(mintPrice.toString()) * BigInt(numberOfTokens)) {
+      toast.error("Insufficient MONAD balance.", { position: "top-right", theme: "dark" });
       return;
     }
     setIsInputValid(true);
@@ -492,10 +444,10 @@ export default function Home() {
     if (chain?.id !== monadTestnet.id) {
       try {
         await switchChain({ chainId: monadTestnet.id });
-        toast.info("Switched to Monad Testnet", { position: "top-right", theme: "dark" });
+        toast.info("Switched to Monad Testnet.", { position: "top-right", theme: "dark" });
       } catch (error: unknown) {
         console.error("Network switch error:", error);
-        toast.error("Failed to switch to Monad Testnet. Please try manually.", { position: "top-right", theme: "dark" });
+        toast.error("Failed to switch to Monad Testnet.", { position: "top-right", theme: "dark" });
         return;
       }
     }
@@ -506,7 +458,7 @@ export default function Home() {
     }
 
     try {
-      const totalCost = mintPrice ? BigInt(mintPrice.toString()) * BigInt(numberOfTokens)     : BigInt(0);
+      const totalCost = mintPrice ? BigInt(mintPrice.toString()) * BigInt(numberOfTokens) : BigInt(0);
       const merkleProof = isVipPhaseActive && isVipWhitelistMintActive
         ? vipMerkleProof
         : isRegularPhaseActive && isRegularWhitelistMintActive
@@ -524,92 +476,135 @@ export default function Home() {
       });
       const result = await writeContractAsync({
         address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
+        abi: typedCatcentNFTABI,
         functionName: "mint",
         args: [numberOfTokens, merkleProof],
-       value: totalCost,
+        value: totalCost,
       });
 
       await addDoc(collection(db, "mintingEvents"), {
         walletAddress: address,
         numberOfTokens,
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
         event: "mint",
       });
 
-      confetti.addConfetti({
+      // Dynamically import JSConfetti only when needed
+      const { default: JSConfetti } = await import("js-confetti");
+      const confetti = new JSConfetti();
+      await confetti.addConfetti({
         confettiRadius: 6,
-        confettiNumber: window.innerWidth < 768 ? 100 : 200,
+        confettiNumber: window.innerWidth < 768 ? 50 : 200,
         confettiColors: ["#9333ea", "#22d3ee", "#fef08a", "#f472b6"],
       });
+
       toast.success(
-        <div>
-          Successfully minted {numberOfTokens} NFT(s)!{" "}
-          <a
-            href={`https://testnet.monadexplorer.com/tx/${result}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline text-cyan-300"
-          >
-            View on Explorer
-          </a>{" "}
-          <button
-            onClick={() => {
-              const tweet = `Just minted ${numberOfTokens} Catcent NFT(s)! Join the drop at ${window.location.origin} #CatcentNFT #NFTDrop`;
-              window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet)}`, "_blank");
-            }}
-            className="underline text-cyan-300"
-          >
-            Share on Twitter
-          </button>
+        <div role="alert" aria-live="assertive">
+          Successfully minted {numberOfTokens} NFT(s)!
         </div>,
         { position: "top-right", theme: "dark" }
       );
       setNumberOfTokens(1);
     } catch (error: unknown) {
       console.error("Mint Error:", error);
-          // normalize mintPrice → string → bigint
-    handleMintError(
-      error,
-      BigInt(mintPrice?.toString() ?? "0"),
-      numberOfTokens
-    );
+      handleMintError(error, mintPrice as bigint | undefined, numberOfTokens);
     }
   };
+
+  // Explicitly type isMintButtonDisabled components as boolean
+  const isEligible: boolean = isVipEligible || isRegularEligible || isPublicEligible;
+  const isMintButtonDisabled: boolean = isPending || Boolean(isPaused) || !isEligible || Boolean(gasError);
+
+  // Debug isMintButtonDisabled types
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("isMintButtonDisabled Debug:", {
+        isPending: typeof isPending,
+        isPaused: typeof isPaused,
+        isVipEligible: typeof isVipEligible,
+        isRegularEligible: typeof isRegularEligible,
+        isPublicEligible: typeof isPublicEligible,
+        isEligible: typeof isEligible,
+        gasError: typeof gasError,
+        isMintButtonDisabled: typeof isMintButtonDisabled,
+      });
+    }
+  }, [isPending, isPaused, isVipEligible, isRegularEligible, isPublicEligible, isEligible, gasError, isMintButtonDisabled]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-cyan-300 font-poppins p-4 sm:p-6 md:p-8">
       <ToastContainer theme="dark" aria-live="polite" />
       <div className="container mx-auto max-w-7xl">
-        {/* Header */}
-        <header className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-4">
-            <Image
-              src="/catcent-logo.png"
-              alt="Catcent Logo"
-              width={64}
-              height={64}
-              className="rounded-full border-4 border-purple-600"
-              unoptimized
-              onError={(e) => {
-                console.error("Logo load failed");
-                e.currentTarget.src = "https://via.placeholder.com/64";
-              }}
-            />
-            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500 drop-shadow-lg">
-              Catcent NFT Drop
-            </h1>
+        {/* Header and Wallet Status */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-6">
+          <header className="text-center">
+            <div className="flex items-center justify-center space-x-4">
+              <Image
+                src="/catcent-logo.png"
+                alt="Catcent Logo"
+                width={64}
+                height={64}
+                className="rounded-full border-4 border-purple-600"
+                unoptimized
+                onError={(e) => {
+                  console.error("Logo load failed");
+                  e.currentTarget.src = "https://via.placeholder.com/64";
+                }}
+              />
+              <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500 drop-shadow-lg">
+                Catcent Testnet Drop
+              </h1>
+            </div>
+            <h2 className="text-xl md:text-2xl font-semibold mt-2 text-cyan-200">
+              Mint & Flex Your Early Degen Status
+            </h2>
+            <p className="text-sm text-yellow-200 mt-2">Current Phase: {currentPhase}</p>
+          </header>
+          {/* Wallet Status */}
+          <div className="w-full md:w-auto max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
+            {isConnected ? (
+              <div className="flex flex-col items-center gap-3">
+                <p className="text-sm font-semibold text-cyan-300">
+                  Connected: <span className="text-yellow-200">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+                </p>
+                {chain?.id !== monadTestnet.id ? (
+                  <>
+                    <p className="text-xs text-pink-400 font-medium">Wrong network! Please switch to Monad Testnet.</p>
+                    <button
+                      onClick={() => switchChain({ chainId: monadTestnet.id })}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-6 py-2 rounded-lg text-base font-semibold transition-all duration-300 focus:ring-2 focus:ring-yellow-500 transform hover:scale-105"
+                      aria-label="Switch to Monad Testnet"
+                    >
+                      Switch Network
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-xs text-green-400 font-medium">Connected to Monad Testnet</p>
+                )}
+                <button
+                  onClick={handleDisconnect}
+                  className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white px-6 py-2 rounded-lg text-base font-semibold transition-all duration-300 focus:ring-2 focus:ring-red-500 transform hover:scale-105"
+                  aria-label="Disconnect wallet"
+                >
+                  Disconnect
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => modal.open()}
+                className="w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-6 py-3 rounded-lg text-base font-semibold flex items-center justify-center transition-all duration-300 focus:ring-2 focus:ring-purple-500 transform hover:scale-105 hover:from-purple-700 hover:to-cyan-700"
+                aria-label="Connect wallet"
+              >
+                Connect Wallet
+              </button>
+            )}
           </div>
-          <h2 className="text-xl md:text-2xl font-semibold mt-2 text-cyan-200">
-            Mint Your Exclusive NFT
-          </h2>
-          <p className="text-sm text-yellow-200 mt-2">Current Phase: {currentPhase}</p>
-        </header>
+        </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="flex flex-col md:grid md:grid-cols-3 gap-6">
           {/* Left Section: NFT Image */}
-          <section className="flex justify-center items-center md:items-start animate-slide-in-left">
+          <section className="order-1 flex justify-center items-center md:items-start animate-slide-in-left">
             <div className="relative group max-w-md w-full">
               <Image
                 src="https://gateway.pinata.cloud/ipfs/Qmf323ezwBzjbPspWnQKaDfVzFGbTBN47soSu4hkUtRAcZ"
@@ -627,16 +622,17 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Center Section: Mint Stages & Total Mint Status */}
-          <section className="flex flex-col gap-6 items-center animate-slide-in-up">
-            {/* Mint Stages */}
+          {/* Center Section: Mint Phases */}
+          <section className="order-3 md:order-2 flex flex-col gap-6 items-center animate-slide-in-up">
             <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
-              <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Stages</h3>
+              <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Phases</h3>
               {isLoading ? (
-                <p className="text-center text-gray-300">Loading mint stages...</p>
+                <p className="text-center text-gray-300">Loading mint phases...</p>
+              ) : contractError ? (
+                <p className="text-center text-red-400">Error: {contractError.message}</p>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {/* Pause Status */}
+                  {/* Active & Purring */}
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg ${
                       isPaused ? "bg-red-800" : "bg-green-800"
@@ -644,9 +640,9 @@ export default function Home() {
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-xl" aria-label={isPaused ? "Contract Paused" : "Contract Active"}>
-                        {isPaused ? "⛔" : "✅"}
+                        {isPaused ? <FaLock /> : <FaUnlock />}
                       </span>
-                      <span className="text-lg font-bold text-cyan-200">Contract Status</span>
+                      <span className="text-lg font-bold text-cyan-200">Active & Purring</span>
                     </div>
                     <span className={`text-sm font-semibold ${isPaused ? "text-red-400" : "text-green-400"}`}>
                       {isPaused ? "Paused" : "Active"}
@@ -660,7 +656,7 @@ export default function Home() {
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-xl" aria-label={isVipEligible ? "VIP Whitelist Unlocked" : "VIP Whitelist Locked"}>
-                        {isVipEligible ? "🔓" : "🔒"}
+                        {isVipEligible ? <FaUnlock /> : <FaLock />}
                       </span>
                       <span className="text-lg font-bold text-cyan-200">GTD (VIP)</span>
                     </div>
@@ -686,7 +682,7 @@ export default function Home() {
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-xl" aria-label={isRegularEligible ? "Regular Whitelist Unlocked" : "Regular Whitelist Locked"}>
-                        {isRegularEligible ? "🔓" : "🔒"}
+                        {isRegularEligible ? <FaUnlock /> : <FaLock />}
                       </span>
                       <span className="text-lg font-bold text-cyan-200">FCFS</span>
                     </div>
@@ -712,7 +708,7 @@ export default function Home() {
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-xl" aria-label={isPublicEligible ? "Public Mint Unlocked" : "Public Mint Locked"}>
-                        {isPublicEligible ? "🔓" : "🔒"}
+                        {isPublicEligible ? <FaUnlock /> : <FaLock />}
                       </span>
                       <span className="text-lg font-bold text-cyan-200">Public</span>
                     </div>
@@ -729,69 +725,15 @@ export default function Home() {
                 </div>
               )}
             </div>
-
-            {/* Total Mint Status */}
-            <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
-              <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Total Mint Status</h3>
-              {totalSupplyLoading || maxSupplyLoading ? (
-                <p className="text-center text-gray-300">Loading mint status...</p>
-              ) : (
-                <div className="flex flex-col items-center gap-3">
-                  <p className="text-sm text-cyan-300">
-                    Minted: <span className="font-semibold text-yellow-200">{totalSupply?.toString() || "0"} / {maxSupply?.toString() || "N/A"}</span>
-                  </p>
-                  <div
-                    className="w-full max-w-xs bg-gray-800 rounded-full h-3 relative overflow-hidden"
-                    role="progressbar"
-                    aria-valuenow={Math.round(((Number(totalSupply) || 0) / (Number(maxSupply) || 100)) * 100)}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                  >
-                    <div
-                      className="bg-gradient-to-r from-purple-600 to-cyan-500 h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${((Number(totalSupply) || 0) / (Number(maxSupply) || 100)) * 100}%` }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-500 opacity-20" />
-                  </div>
-                  <p className="text-xs font-bold text-cyan-300">
-                    {Math.round(((Number(totalSupply) || 0) / (Number(maxSupply) || 100)) * 100)}% Minted
-                  </p>
-                  {Number(totalSupply || 0) >= Number(maxSupply || 0) && (
-                    <p className="text-xs text-red-400">Collection is sold out!</p>
-                  )}
-                </div>
-              )}
-            </div>
           </section>
 
-          {/* Right Section: Wallet Status & Mint Controls */}
-          <section className="flex flex-col gap-6 items-center animate-slide-in-right">
-            {/* Wallet Status */}
-            <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
-              {isConnected ? (
-                <div className="flex flex-col items-center gap-3">
-                  <p className="text-sm font-semibold text-cyan-300">
-                    Connected: <span className="text-yellow-200">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
-                  </p>
-                  {chain?.id !== monadTestnet.id && (
-                    <p className="text-xs text-pink-400 font-medium">Wrong network! Please switch to Monad Testnet.</p>
-                  )}
-                <div
-                  className="w-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white px-6 py-2 rounded-lg text-base font-semibold transition-all duration-300 focus:ring-2 focus:ring-purple-500"
-                />
-                </div>
-              ) : (
-               <div
-                 className="w-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white px-6 py-2 rounded-lg text-base font-semibold transition-all duration-300 focus:ring-2 focus:ring-purple-500"
-               />
-              )}
-            </div>
-
-            {/* Mint Controls */}
+          {/* Right Section: Mint Your NFT & Mint Progress */}
+          <section className="order-4 md:order-3 flex flex-col gap-6 items-center animate-slide-in-right">
+            {/* Mint Your NFT */}
             {isConnected && (
               <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
                 <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Your NFT</h3>
-                {priceLoading || balanceLoading || isFetchingProofs ? (
+                {isLoading || isFetchingProofs ? (
                   <p className="text-center text-gray-300">
                     Loading contract data...
                     <svg className="animate-spin h-5 w-5 mx-auto mt-2" viewBox="0 0 24 24">
@@ -807,6 +749,11 @@ export default function Home() {
                     <p className="text-sm text-cyan-300">
                       Your NFTs: <span className="font-semibold text-yellow-200">{balance?.toString() || "0"}</span>
                     </p>
+                    {userBalance && (
+                      <p className="text-sm text-cyan-300">
+                        Your Balance: <span className="font-semibold text-yellow-200">{(Number(userBalance.value) / 1e18).toFixed(4)} MONAD</span>
+                      </p>
+                    )}
                     {gasEstimate && !gasError && (
                       <p className="text-xs text-gray-400">
                         Estimated Gas: {(Number(gasEstimate) / 1e18).toFixed(6)} MONAD
@@ -861,13 +808,14 @@ export default function Home() {
                         </div>
                         <button
                           onClick={handleMint}
-                          disabled={isPending || Boolean(isPaused) || !(isVipEligible || isRegularEligible || isPublicEligible)}
+                          disabled={isMintButtonDisabled}
+                          aria-disabled={isMintButtonDisabled}
                           className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-6 py-3 rounded-lg text-base font-semibold flex items-center justify-center transition-all duration-300 focus:ring-2 focus:ring-purple-500 ${
-                            isPending || isPaused || !(isVipEligible || isRegularEligible || isPublicEligible)
+                            isMintButtonDisabled
                               ? "opacity-50 cursor-not-allowed"
-                              : "hover:from-purple-700 hover:to-cyan-700"
+                              : "hover:from-purple-700 hover:to-cyan-700 transform hover:scale-105"
                           }`}
-                          aria-label="Mint NFT"
+                          aria-label={isPending ? "Minting in progress" : "Mint NFT"}
                         >
                           {isPending ? (
                             <>
@@ -887,7 +835,7 @@ export default function Home() {
                       <p className="text-xs text-cyan-300 text-center">
                         Need testnet MONAD?{" "}
                         <a
-                          href="https://faucet.quicknode.com/monad"
+                          href="https://discord.com/invite/TXPbt7ztMC"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-yellow-200 underline hover:text-yellow-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -903,6 +851,39 @@ export default function Home() {
                 )}
               </div>
             )}
+
+            {/* Mint Progress */}
+            <div className="order-5 w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
+              <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Progress</h3>
+              {isLoading ? (
+                <p className="text-center text-gray-300">Loading mint status...</p>
+              ) : (
+                <div className="flex flex-col items-center gap-3">
+                  <p className="text-sm text-cyan-300">
+                    Minted: <span className="font-semibold text-yellow-200">{totalSupply?.toString() || "0"} / {maxSupply?.toString() || "N/A"}</span>
+                  </p>
+                  <div
+                    className="w-full max-w-xs bg-gray-800 rounded-full h-3 relative overflow-hidden"
+                    role="progressbar"
+                    aria-valuenow={Math.round(((Number(totalSupply) || 0) / (Number(maxSupply) || 100)) * 100)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  >
+                    <div
+                      className="bg-gradient-to-r from-purple-600 to-cyan-500 h-3 rounded-full transition-all duration-500"
+                      style={{ width: `${((Number(totalSupply) || 0) / (Number(maxSupply) || 100)) * 100}%` }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-500 opacity-20" />
+                  </div>
+                  <p className="text-xs font-bold text-cyan-300">
+                    {Math.round(((Number(totalSupply) || 0) / (Number(maxSupply) || 100)) * 100)}% Minted
+                  </p>
+                  {Number(totalSupply || 0) >= Number(maxSupply || 0) && (
+                    <p className="text-xs text-red-400">Collection is sold out!</p>
+                  )}
+                </div>
+              )}
+            </div>
           </section>
         </div>
 
@@ -910,16 +891,12 @@ export default function Home() {
         <footer className="mt-8 text-center text-cyan-300">
           <p className="text-sm">
             Join our community:{" "}
-            <a href="https://discord.gg/your-discord" target="_blank" rel="noopener noreferrer" className="text-yellow-200 underline">
+            <a href="https://discord.com/invite/TXPbt7ztMC" target="_blank" rel="noopener noreferrer" className="text-yellow-200 underline">
               Discord
             </a>{" "}
             |{" "}
-            <a href="https://twitter.com/your-twitter" target="_blank" rel="noopener noreferrer" className="text-yellow-200 underline">
-              Twitter
-            </a>{" "}
-            |{" "}
-            <a href="https://opensea.io/collection/your-collection" target="_blank" rel="noopener noreferrer" className="text-yellow-200 underline">
-              OpenSea
+            <a href="https://x.com/CatCentsio/" target="_blank" rel="noopener noreferrer" className="text-yellow-200 underline">
+              X
             </a>
           </p>
         </footer>
