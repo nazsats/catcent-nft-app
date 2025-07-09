@@ -500,7 +500,15 @@ export default function Home() {
 
       toast.success(
         <div role="alert" aria-live="assertive">
-          Successfully minted {numberOfTokens} NFT(s)!
+          Successfully minted {numberOfTokens} NFT(s)!{" "}
+          <a
+            href={`https://testnet.monadexplorer.com/tx/${result}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline text-cyan-300"
+          >
+            View on Explorer
+          </a>
         </div>,
         { position: "top-right", theme: "dark" }
       );
