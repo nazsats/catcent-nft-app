@@ -1,0 +1,1 @@
+console.log("Current timestamp:", Math.floor(Date.now() / 1000));
