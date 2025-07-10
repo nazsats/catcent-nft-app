@@ -339,9 +339,9 @@ export default function Home() {
       "denied": "Transaction rejected.",
       "Exceeds max supply": "Minting would exceed max supply.",
       "Insufficient payment": `Insufficient payment. Required: ${(mintPrice * BigInt(numberOfTokens) / BigInt(1e18)).toString()} MONAD`,
-      "Not VIP whitelisted": "You are not VIP whitelisted.",
+      "Not GTD whitelisted": "You are not GTD whitelisted.",
       "Not whitelisted for Regular phase": "You are not whitelisted for the Regular phase.",
-      "VIP whitelist already minted": "You have already minted in the VIP phase.",
+      "GTD whitelist already minted": "You have already minted in the GTD phase.",
       "Regular whitelist already minted": "You've already claimed your whitelist mint.",
       "Minting not active": "Minting is not active. Check phase times.",
       "Contract is paused": "Minting is paused.",
@@ -376,7 +376,7 @@ export default function Home() {
       return;
     }
     if (isVipPhaseActive && isVipWhitelistMintActive && !isVipEligible) {
-      toast.error("You are not eligible for the VIP phase.", { position: "top-right", theme: "dark" });
+      toast.error("You are not eligible for the GTD phase.", { position: "top-right", theme: "dark" });
       return;
     }
     if (isRegularPhaseActive && isRegularWhitelistMintActive && !isRegularEligible) {
@@ -642,7 +642,7 @@ export default function Home() {
             <CountdownTimer
               startTime={Number(vipWhitelistStartTime)}
               endTime={Number(vipWhitelistEndTime)}
-              phase="VIP"
+              phase="GTD"
             />
             {/* Regular Whitelist */}
             <div
@@ -668,7 +668,7 @@ export default function Home() {
             <CountdownTimer
               startTime={Number(regularWhitelistStartTime)}
               endTime={Number(regularWhitelistEndTime)}
-              phase="Regular"
+              phase="FCFS"
             />
             {/* Public Mint */}
             <div
