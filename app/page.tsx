@@ -515,7 +515,7 @@ export default function Home() {
                 }}
               />
               <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500 drop-shadow-lg">
-                Catcent NFT
+                
               </h1>
             </div>
           </header>
