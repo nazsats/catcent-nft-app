@@ -224,11 +224,11 @@ export default function Home() {
     value: mintPrice ? BigInt(mintPrice.toString()) * BigInt(numTokens) : undefined,
     query: {
       enabled: isGasEstimationEnabled,
-      onError(error) {
-        const errorMessage = error instanceof Error && /already minted/i.test(error.message)
+      onError: (error: Error) => {
+        const msg = /already minted/i.test(error.message)
           ? "You've already claimed your whitelist mint."
           : "Could not estimate gas for minting.";
-        toast.error(errorMessage, { position: "top-right", theme: "dark" });
+        toast.error(msg, { position: "top-right", theme: "dark" });
       },
     },
   });
@@ -648,7 +648,7 @@ export default function Home() {
                       </span>
                       <span className="text-lg font-bold text-cyan-200">FCFS</span>
                     </div>
-                    <span className={`text-sm font-semibold ${isRegularEligible ? "text-green-400" : Number(regularWhitelistMinted) > 0 ? "text-green-400" : "text-red-400"}`}>
+                    <span className={`text-sm font-semibold ${isRegularEligible ? "text-green-400" : Number(regularWhitelistMinted) > 0 ? "text-red-400" : "text-red-400"}`}>
                       {Number(regularWhitelistMinted) > 0 ? "Minted" : isRegularEligible ? "Eligible" : "Not Eligible"}
                     </span>
                   </div>
@@ -707,6 +707,11 @@ export default function Home() {
                     {userBalance && (
                       <p className="text-sm text-cyan-300">
                         Your Balance: <span className="font-semibold text-yellow-200">{(Number(userBalance.value) / 1e18).toFixed(4)} MONAD</span>
+                      </p>
+                    )}
+                    {gasEstimate && (
+                      <p className="text-xs text-gray-400">
+                        Estimated Gas: {(Number(gasEstimate) / 1e18).toFixed(6)} MONAD
                       </p>
                     )}
                     {Number(totalSupply) >= Number(maxSupply) ? (
