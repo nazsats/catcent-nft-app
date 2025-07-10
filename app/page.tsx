@@ -13,7 +13,7 @@ import { encodeFunctionData, type Abi } from "viem";
 import { modal } from "@/context";
 import { FaLock, FaUnlock } from "react-icons/fa";
 
-// Explicitly type the ABI to ensure compatibility with wagmi
+// Explicitly type the ABI
 const typedCatcentNFTABI = CatcentNFTABI as Abi;
 
 export default function Home() {
@@ -28,7 +28,7 @@ export default function Home() {
   const [isFetchingProofs, setIsFetchingProofs] = useState(false);
   const [currentPhase, setCurrentPhase] = useState<string>("");
 
-  // Define contract calls with explicit types
+  // Define contract calls
   const contractCalls = [
     { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "isPublicMintActive" },
     { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "isVipWhitelistMintActive" },
@@ -53,7 +53,7 @@ export default function Home() {
     query: { staleTime: 30_000, retry: 3, retryDelay: 1000, enabled: true },
   });
 
-  // Explicitly type the contract data results to avoid `unknown`
+  // Extract contract data
   const [
     isPublicMintActive = false as boolean,
     isVipWhitelistMintActive = false as boolean,
@@ -79,50 +79,6 @@ export default function Home() {
     query: { enabled: !!address },
   });
 
-  // Debug contract data
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.log("Contract Data Debug:", {
-        isPublicMintActive,
-        isVipWhitelistMintActive,
-        isRegularWhitelistMintActive,
-        isPaused,
-        mintPrice: mintPrice ? mintPrice.toString() : "undefined",
-        totalSupply: totalSupply ? totalSupply.toString() : "undefined",
-        maxSupply: maxSupply ? maxSupply.toString() : "undefined",
-        balance: balance ? balance.toString() : "undefined",
-        vipWhitelistMinted: vipWhitelistMinted ? vipWhitelistMinted.toString() : "undefined",
-        regularWhitelistMinted: regularWhitelistMinted ? regularWhitelistMinted.toString() : "undefined",
-        vipWhitelistStartTime: vipWhitelistStartTime ? vipWhitelistStartTime.toString() : "undefined",
-        vipWhitelistEndTime: vipWhitelistEndTime ? vipWhitelistEndTime.toString() : "undefined",
-        regularWhitelistStartTime: regularWhitelistStartTime ? regularWhitelistStartTime.toString() : "undefined",
-        regularWhitelistEndTime: regularWhitelistEndTime ? regularWhitelistEndTime.toString() : "undefined",
-        publicMintStartTime: publicMintStartTime ? publicMintStartTime.toString() : "undefined",
-        publicMintEndTime: publicMintEndTime ? publicMintEndTime.toString() : "undefined",
-        contractError: contractError?.message ?? "none",
-      });
-    }
-  }, [
-    contractData,
-    contractError,
-    isPublicMintActive,
-    isVipWhitelistMintActive,
-    isRegularWhitelistMintActive,
-    isPaused,
-    mintPrice,
-    totalSupply,
-    maxSupply,
-    balance,
-    vipWhitelistMinted,
-    regularWhitelistMinted,
-    vipWhitelistStartTime,
-    vipWhitelistEndTime,
-    regularWhitelistStartTime,
-    regularWhitelistEndTime,
-    publicMintStartTime,
-    publicMintEndTime,
-  ]);
-
   // Fetch Merkle proofs
   useEffect(() => {
     async function fetchMerkleProofs() {
@@ -135,7 +91,6 @@ export default function Home() {
         const fcfsProofs = fcfsDoc.exists() ? fcfsDoc.data().proofs?.[address.toLowerCase()] || [] : [];
         setVipMerkleProof(gtdProofs);
         setRegularMerkleProof(fcfsProofs);
-        console.log("Merkle Proofs Debug:", { vipMerkleProof: gtdProofs, regularMerkleProof: fcfsProofs });
       } catch (error: unknown) {
         console.error("Error fetching Merkle proofs:", error);
         toast.error("Failed to fetch whitelist status", { position: "top-right", theme: "dark" });
@@ -146,7 +101,12 @@ export default function Home() {
     fetchMerkleProofs();
   }, [address]);
 
-  // Determine phase eligibility
+  // Determine phase eligibility (show eligibility even before phase starts)
+  const isVipEligible = vipMerkleProof.length > 0 && Number(vipWhitelistMinted || 0) === 0;
+  const isRegularEligible = (regularMerkleProof.length > 0 || vipMerkleProof.length > 0) && Number(regularWhitelistMinted || 0) === 0;
+  const isPublicEligible = isConnected; // Eligible if connected, but minting requires active phase
+
+  // Determine phase status
   const now = Math.floor(Date.now() / 1000);
   const isVipPhaseActive = vipWhitelistStartTime && vipWhitelistEndTime
     ? Number(vipWhitelistStartTime) <= now && now < Number(vipWhitelistEndTime)
@@ -157,18 +117,6 @@ export default function Home() {
   const isPublicPhaseActive = publicMintStartTime && publicMintEndTime
     ? Number(publicMintStartTime) <= now && (now < Number(publicMintEndTime) || Number(totalSupply || 0) < Number(maxSupply || 0))
     : false;
-
-  const isVipEligible = Boolean(
-    (isVipWhitelistMintActive || isVipPhaseActive) &&
-      vipMerkleProof.length > 0 &&
-      Number(vipWhitelistMinted || 0) === 0
-  );
-  const isRegularEligible = Boolean(
-    (isRegularWhitelistMintActive || isRegularPhaseActive) &&
-      (regularMerkleProof.length > 0 || vipMerkleProof.length > 0) &&
-      Number(regularWhitelistMinted || 0) === 0
-  );
-  const isPublicEligible = Boolean(isPublicMintActive || isPublicPhaseActive) && isConnected;
 
   // Set current phase
   useEffect(() => {
@@ -211,8 +159,8 @@ export default function Home() {
     numTokens >= 1 &&
     numTokens <= 10 &&
     isConnected &&
-    ((isVipPhaseActive && isVipWhitelistMintActive && vipMerkleProof.length > 0) ||
-     (isRegularPhaseActive && isRegularWhitelistMintActive && (vipMerkleProof.length > 0 || regularMerkleProof.length > 0)) ||
+    ((isVipPhaseActive && isVipWhitelistMintActive && isVipEligible) ||
+     (isRegularPhaseActive && isRegularWhitelistMintActive && isRegularEligible) ||
      (isPublicPhaseActive && isPublicMintActive))
   );
 
@@ -267,55 +215,6 @@ export default function Home() {
       toast.error("Failed to disconnect wallet.", { position: "top-right", theme: "dark" });
     }
   };
-
-  // Debug eligibility
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.log("Eligibility Debug:", {
-        isVipEligible,
-        isVipWhitelistMintActive,
-        isVipPhaseActive,
-        vipMerkleProof,
-        vipWhitelistMinted: Number(vipWhitelistMinted ?? 0),
-        vipWhitelistStartTime: Number(vipWhitelistStartTime ?? 0),
-        vipWhitelistEndTime: Number(vipWhitelistEndTime ?? 0),
-        isRegularEligible,
-        isRegularWhitelistMintActive,
-        isRegularPhaseActive,
-        regularMerkleProof,
-        regularWhitelistMinted: Number(regularWhitelistMinted ?? 0),
-        regularWhitelistStartTime: Number(regularWhitelistStartTime ?? 0),
-        regularWhitelistEndTime: Number(regularWhitelistEndTime ?? 0),
-        isPublicEligible,
-        isPublicMintActive,
-        isPublicPhaseActive,
-        publicMintStartTime: Number(publicMintStartTime ?? 0),
-        publicMintEndTime: Number(publicMintEndTime ?? 0),
-        now,
-      });
-    }
-  }, [
-    isVipEligible,
-    isVipWhitelistMintActive,
-    isVipPhaseActive,
-    vipMerkleProof,
-    vipWhitelistMinted,
-    vipWhitelistStartTime,
-    vipWhitelistEndTime,
-    isRegularEligible,
-    isRegularWhitelistMintActive,
-    isRegularPhaseActive,
-    regularMerkleProof,
-    regularWhitelistMinted,
-    regularWhitelistStartTime,
-    regularWhitelistEndTime,
-    isPublicEligible,
-    isPublicMintActive,
-    isPublicPhaseActive,
-    publicMintStartTime,
-    publicMintEndTime,
-    now,
-  ]);
 
   // Handle increase/decrease buttons
   const handleIncrease = () => {
@@ -375,11 +274,11 @@ export default function Home() {
       "user rejected": "Transaction rejected.",
       "denied": "Transaction rejected.",
       "Exceeds max supply": "Minting would exceed max supply.",
-      "Insufficient payment": `Insufficient payment. Required: ${(mintPrice && mintPrice * BigInt(numberOfTokens) / BigInt(1e18))?.toString() ?? "0"} MONAD`,
+      "Insufficient payment": `Insufficient payment. Required: ${(mintPrice && mintPrice * BigInt(numberOfTokens) / BigInt(1e18))?.toString() ?? "3.55"} MONAD`,
       "Not VIP whitelisted": "You are not VIP whitelisted.",
       "Not whitelisted for Regular phase": "You are not whitelisted for the Regular phase.",
       "VIP whitelist already minted": "You have already minted in the VIP phase.",
-      "RegularWhitelistMinted": "You have already minted in the Regular phase.",
+      "Regular whitelist already minted": "You have already minted in the Regular phase.",
       "Minting not active": "Minting is not active. Check phase times.",
       "Contract is paused": "Minting is paused.",
       "network": "Network error. Please check your connection.",
@@ -466,14 +365,6 @@ export default function Home() {
             ? vipMerkleProof
             : regularMerkleProof
           : [];
-      console.log("Mint Attempt:", {
-        phase: isVipPhaseActive && isVipWhitelistMintActive ? "VIP" : isRegularPhaseActive && isRegularWhitelistMintActive ? "Regular" : "Public",
-        numberOfTokens,
-        merkleProof,
-        totalCost: totalCost.toString(),
-        contractAddress,
-        walletAddress: address,
-      });
       const result = await writeContractAsync({
         address: contractAddress as `0x${string}`,
         abi: typedCatcentNFTABI,
@@ -489,7 +380,6 @@ export default function Home() {
         event: "mint",
       });
 
-      // Dynamically import JSConfetti only when needed
       const { default: JSConfetti } = await import("js-confetti");
       const confetti = new JSConfetti();
       await confetti.addConfetti({
@@ -519,29 +409,15 @@ export default function Home() {
     }
   };
 
-  // Explicitly type isMintButtonDisabled components as boolean
-  const isEligible: boolean = isVipEligible || isRegularEligible || isPublicEligible;
-  const isMintButtonDisabled: boolean = isPending || Boolean(isPaused) || !isEligible || Boolean(gasError);
-
-  // Debug isMintButtonDisabled types
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.log("isMintButtonDisabled Debug:", {
-        isPending: typeof isPending,
-        isPaused: typeof isPaused,
-        isVipEligible: typeof isVipEligible,
-        isRegularEligible: typeof isRegularEligible,
-        isPublicEligible: typeof isPublicEligible,
-        isEligible: typeof isEligible,
-        gasError: typeof gasError,
-        isMintButtonDisabled: typeof isMintButtonDisabled,
-      });
-    }
-  }, [isPending, isPaused, isVipEligible, isRegularEligible, isPublicEligible, isEligible, gasError, isMintButtonDisabled]);
+  // Mint button disabled logic
+  const isEligible: boolean = (isVipPhaseActive && isVipWhitelistMintActive && isVipEligible) ||
+                             (isRegularPhaseActive && isRegularWhitelistMintActive && isRegularEligible) ||
+                             (isPublicPhaseActive && isPublicMintActive && isPublicEligible);
+  const isMintButtonDisabled: boolean = isPending || isPaused || !isEligible || Boolean(gasError);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-cyan-300 font-poppins p-4 sm:p-6 md:p-8">
-      <ToastContainer theme="dark" aria-live="polite" />
+      <ToastContainer theme="dark" position="top-right" aria-live="polite" />
       <div className="container mx-auto max-w-7xl">
         {/* Header and Wallet Status */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-6">
@@ -568,7 +444,6 @@ export default function Home() {
             </h2>
             <p className="text-sm text-yellow-200 mt-2">Current Phase: {currentPhase}</p>
           </header>
-          {/* Wallet Status */}
           <div className="w-full md:w-auto max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
             {isConnected ? (
               <div className="flex flex-col items-center gap-3">
@@ -659,17 +534,17 @@ export default function Home() {
                   {/* VIP Whitelist */}
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg ${
-                      isVipEligible ? "bg-gradient-to-r from-purple-600 to-cyan-600" : "bg-gray-800"
+                      isVipEligible ? "bg-gradient-to-r from-purple-600 to-cyan-600" : Number(vipWhitelistMinted || 0) > 0 ? "bg-green-600" : "bg-gray-800"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-label={isVipEligible ? "VIP Whitelist Unlocked" : "VIP Whitelist Locked"}>
-                        {isVipEligible ? <FaUnlock /> : <FaLock />}
+                      <span className="text-xl" aria-label={isVipEligible ? "VIP Whitelist Unlocked" : Number(vipWhitelistMinted || 0) > 0 ? "VIP Whitelist Minted" : "VIP Whitelist Locked"}>
+                        {isVipEligible || Number(vipWhitelistMinted || 0) > 0 ? <FaUnlock /> : <FaLock />}
                       </span>
                       <span className="text-lg font-bold text-cyan-200">GTD (VIP)</span>
                     </div>
-                    <span className={`text-sm font-semibold ${isVipEligible ? "text-green-400" : "text-red-400"}`}>
-                      {isVipEligible ? "Eligible" : isVipPhaseActive ? "Not Eligible" : now < Number(vipWhitelistStartTime || 0) ? "Not Started" : "Ended"}
+                    <span className={`text-sm font-semibold ${isVipEligible ? "text-green-400" : Number(vipWhitelistMinted || 0) > 0 ? "text-green-400" : "text-red-400"}`}>
+                      {Number(vipWhitelistMinted || 0) > 0 ? "Minted" : isVipEligible ? "Eligible" : "Not Eligible"}
                     </span>
                   </div>
                   {isConnected && (
@@ -678,24 +553,24 @@ export default function Home() {
                     </p>
                   )}
                   <CountdownTimer
-                    startTime={Number(vipWhitelistStartTime || 1767225600)}
-                    endTime={Number(vipWhitelistEndTime || 1767229200)}
+                    startTime={Number(vipWhitelistStartTime || 1752117600)}
+                    endTime={Number(vipWhitelistEndTime || 1752118800)}
                     phase="VIP"
                   />
                   {/* Regular Whitelist */}
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg ${
-                      isRegularEligible ? "bg-gradient-to-r from-purple-600 to-cyan-600" : "bg-gray-800"
+                      isRegularEligible ? "bg-gradient-to-r from-purple-600 to-cyan-600" : Number(regularWhitelistMinted || 0) > 0 ? "bg-green-600" : "bg-gray-800"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-label={isRegularEligible ? "Regular Whitelist Unlocked" : "Regular Whitelist Locked"}>
-                        {isRegularEligible ? <FaUnlock /> : <FaLock />}
+                      <span className="text-xl" aria-label={isRegularEligible ? "Regular Whitelist Unlocked" : Number(regularWhitelistMinted || 0) > 0 ? "Regular Whitelist Minted" : "Regular Whitelist Locked"}>
+                        {isRegularEligible || Number(regularWhitelistMinted || 0) > 0 ? <FaUnlock /> : <FaLock />}
                       </span>
                       <span className="text-lg font-bold text-cyan-200">FCFS</span>
                     </div>
-                    <span className={`text-sm font-semibold ${isRegularEligible ? "text-green-400" : "text-red-400"}`}>
-                      {isRegularEligible ? "Eligible" : isRegularPhaseActive ? "Not Eligible" : now < Number(regularWhitelistStartTime || 0) ? "Not Started" : "Ended"}
+                    <span className={`text-sm font-semibold ${isRegularEligible ? "text-green-400" : Number(regularWhitelistMinted || 0) > 0 ? "text-green-400" : "text-red-400"}`}>
+                      {Number(regularWhitelistMinted || 0) > 0 ? "Minted" : isRegularEligible ? "Eligible" : "Not Eligible"}
                     </span>
                   </div>
                   {isConnected && (
@@ -704,30 +579,30 @@ export default function Home() {
                     </p>
                   )}
                   <CountdownTimer
-                    startTime={Number(regularWhitelistStartTime || 1767232800)}
-                    endTime={Number(regularWhitelistEndTime || 1767236400)}
+                    startTime={Number(regularWhitelistStartTime || 1752118800)}
+                    endTime={Number(regularWhitelistEndTime || 1752119400)}
                     phase="Regular"
                   />
                   {/* Public Mint */}
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg ${
-                      isPublicEligible ? "bg-gradient-to-r from-purple-600 to-cyan-600" : "bg-gray-800"
+                      isPublicEligible && (isPublicPhaseActive && isPublicMintActive) ? "bg-gradient-to-r from-purple-600 to-cyan-600" : isPublicEligible ? "bg-purple-800" : "bg-gray-800"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-label={isPublicEligible ? "Public Mint Unlocked" : "Public Mint Locked"}>
+                      <span className="text-xl" aria-label={isPublicEligible ? "Public Mint Eligible" : "Public Mint Locked"}>
                         {isPublicEligible ? <FaUnlock /> : <FaLock />}
                       </span>
                       <span className="text-lg font-bold text-cyan-200">Public</span>
                     </div>
-                    <span className={`text-sm font-semibold ${isPublicEligible ? "text-green-400" : "text-red-400"}`}>
-                      {isPublicEligible ? "Live" : now < Number(publicMintStartTime || 0) ? "Not Started" : "Ended"}
+                    <span className={`text-sm font-semibold ${isPublicEligible && (isPublicPhaseActive && isPublicMintActive) ? "text-green-400" : isPublicEligible ? "text-yellow-400" : "text-red-400"}`}>
+                      {isPublicEligible && (isPublicPhaseActive && isPublicMintActive) ? "Live" : isPublicEligible ? "Eligible" : "Not Eligible"}
                     </span>
                   </div>
                   {isConnected && <p className="text-xs text-cyan-300 pl-10">Limit: Up to 10 per transaction</p>}
                   <CountdownTimer
-                    startTime={Number(publicMintStartTime || 1767240000)}
-                    endTime={Number(publicMintEndTime || 1771468740)}
+                    startTime={Number(publicMintStartTime || 1752119400)}
+                    endTime={Number(publicMintEndTime || 1754548799)}
                     phase="Public"
                   />
                 </div>
@@ -737,7 +612,6 @@ export default function Home() {
 
           {/* Right Section: Mint Your NFT & Mint Progress */}
           <section className="order-4 md:order-3 flex flex-col gap-6 items-center animate-slide-in-right">
-            {/* Mint Your NFT */}
             {isConnected && (
               <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
                 <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Your NFT</h3>
@@ -752,7 +626,7 @@ export default function Home() {
                 ) : (
                   <div className="flex flex-col items-center gap-3">
                     <p className="text-sm text-cyan-300">
-                      Mint Price: <span className="font-semibold text-yellow-200">{mintPrice ? (Number(mintPrice) / 1e18).toString() : "N/A"} MONAD</span>
+                      Mint Price: <span className="font-semibold text-yellow-200">{mintPrice ? (Number(mintPrice) / 1e18).toString() : "3.55"} MONAD</span>
                     </p>
                     <p className="text-sm text-cyan-300">
                       Your NFTs: <span className="font-semibold text-yellow-200">{balance?.toString() || "0"}</span>
@@ -868,23 +742,23 @@ export default function Home() {
               ) : (
                 <div className="flex flex-col items-center gap-3">
                   <p className="text-sm text-cyan-300">
-                    Minted: <span className="font-semibold text-yellow-200">{totalSupply?.toString() || "0"} / {maxSupply?.toString() || "N/A"}</span>
+                    Minted: <span className="font-semibold text-yellow-200">{totalSupply?.toString() || "0"} / {maxSupply?.toString() || "3535"}</span>
                   </p>
                   <div
                     className="w-full max-w-xs bg-gray-800 rounded-full h-3 relative overflow-hidden"
                     role="progressbar"
-                    aria-valuenow={Math.round(((Number(totalSupply) || 0) / (Number(maxSupply) || 100)) * 100)}
+                    aria-valuenow={Math.round(((Number(totalSupply) || 0) / (Number(maxSupply) || 3535)) * 100)}
                     aria-valuemin={0}
                     aria-valuemax={100}
                   >
                     <div
                       className="bg-gradient-to-r from-purple-600 to-cyan-500 h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${((Number(totalSupply) || 0) / (Number(maxSupply) || 100)) * 100}%` }}
+                      style={{ width: `${((Number(totalSupply) || 0) / (Number(maxSupply) || 3535)) * 100}%` }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-500 opacity-20" />
                   </div>
                   <p className="text-xs font-bold text-cyan-300">
-                    {Math.round(((Number(totalSupply) || 0) / (Number(maxSupply) || 100)) * 100)}% Minted
+                    {Math.round(((Number(totalSupply) || 0) / (Number(maxSupply) || 3535)) * 100)}% Minted
                   </p>
                   {Number(totalSupply || 0) >= Number(maxSupply || 0) && (
                     <p className="text-xs text-red-400">Collection is sold out!</p>

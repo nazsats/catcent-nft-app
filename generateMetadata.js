@@ -1,16 +1,16 @@
 const fs = require("fs");
 const path = require("path");
-const imageCID = "Qmf323ezwBzjbPspWnQKaDfVzFGbTBN47soSu4hkUtRAcZ"; // Replace with your image CID
+const imageCID = "bafybeifkljwudpvlfhtcq5qrmg54hw3qu57rhtwx4zchrdiqta33xrsl4i"; // Replace with your image CID
 const outputDir = "./nft-metadata";
 // Create output directory
 if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir);
 }
 // Generate metadata for 100 NFTs
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 3535; i++) {
   const metadata = {
-    name: `CatcentNFT #${i}`,
-    description: "A unique Catcent NFT from the exclusive collection.",
+    name: `Catcents #${i}`,
+    description: "Your early Degen status from catcents.",
     image: `ipfs://${imageCID}`,
     attributes: [],
   };
@@ -19,4 +19,4 @@ for (let i = 0; i < 100; i++) {
     JSON.stringify(metadata, null, 2)
   );
 }
-console.log("Generated 100 metadata files in", outputDir);
+console.log("Generated 3535 metadata files in", outputDir);

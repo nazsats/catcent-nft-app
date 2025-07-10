@@ -313,6 +313,19 @@
 	{
 		"inputs": [
 			{
+				"internalType": "string",
+				"name": "_newBaseURI",
+				"type": "string"
+			}
+		],
+		"name": "setBaseURI",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "uint256",
 				"name": "_mintPrice",
 				"type": "uint256"
@@ -332,19 +345,6 @@
 			}
 		],
 		"name": "setPaused",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "bool",
-				"name": "_isActive",
-				"type": "bool"
-			}
-		],
-		"name": "setPublicMintActive",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -404,19 +404,6 @@
 	{
 		"inputs": [
 			{
-				"internalType": "bool",
-				"name": "_isActive",
-				"type": "bool"
-			}
-		],
-		"name": "setRegularWhitelistMintActive",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
 				"internalType": "uint256",
 				"name": "_startTime",
 				"type": "uint256"
@@ -449,19 +436,6 @@
 			}
 		],
 		"name": "setVipWhitelistEndTime",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "bool",
-				"name": "_isActive",
-				"type": "bool"
-			}
-		],
-		"name": "setVipWhitelistMintActive",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -567,6 +541,19 @@
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "baseURI",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "uint256",
@@ -580,6 +567,19 @@
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getBalance",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",

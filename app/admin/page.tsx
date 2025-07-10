@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useAccount, useWriteContract, useReadContract } from "wagmi";
+import { useAccount, useWriteContract, useReadContract, useBalance } from "wagmi";
 import { contractAddress } from "@/config";
 import CatcentNFTABI from "../CatcentNFT.json";
 import { ToastContainer, toast } from "react-toastify";
@@ -13,21 +13,22 @@ import keccak256 from "keccak256";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
-
 export default function Admin() {
   const { isConnected, address, chain } = useAccount();
   const { writeContractAsync, isPending } = useWriteContract();
-  const [vipStartTime, setVipStartTime] = useState("1752045050"); // March 1, 2026, 00:00 UTC
-  const [vipEndTime, setVipEndTime] = useState("1752046250");     // March 1, 2026, 01:00 UTC
-  const [regularStartTime, setRegularStartTime] = useState("1752046250"); // March 1, 2026, 02:00 UTC
-  const [regularEndTime, setRegularEndTime] = useState("1752047450");     // March 1, 2026, 03:00 UTC
-  const [publicStartTime, setPublicStartTime] = useState("1752047450");   // March 1, 2026, 04:00 UTC
-  const [publicEndTime, setPublicEndTime] = useState("1752133850");       // March 31, 2026, 23:59 UTC
-  const [mintPrice, setMintPrice] = useState("0.01");
+  const [vipStartTime, setVipStartTime] = useState("1752117600"); // July 10, 2025, 08:00 UTC
+  const [vipEndTime, setVipEndTime] = useState("1752118800");     // July 10, 2025, 08:20 UTC
+  const [regularStartTime, setRegularStartTime] = useState("1752118800"); // July 10, 2025, 08:20 UTC
+  const [regularEndTime, setRegularEndTime] = useState("1752119400");     // July 10, 2025, 08:30 UTC
+  const [publicStartTime, setPublicStartTime] = useState("1752119400");   // July 10, 2025, 08:30 UTC
+  const [publicEndTime, setPublicEndTime] = useState("1754548799");       // July 31, 2025, 23:59 UTC
+  const [mintPrice, setMintPrice] = useState("3.55");
   const [vipAddresses, setVipAddresses] = useState("");
   const [regularAddresses, setRegularAddresses] = useState("");
+  const [baseURI, setBaseURI] = useState(
+    "https://teal-characteristic-reindeer-501.mypinata.cloud/ipfs/bafybeicevjhoydcv6lnmxo3gwylrvp6vxpap66ssi2l2xw5p6vdj7horbe/"
+  );
   const [isOwner, setIsOwner] = useState(false);
-
 
   // Check if connected wallet is owner
   const { data: owner } = useReadContract({
@@ -35,14 +36,6 @@ export default function Admin() {
     abi: CatcentNFTABI,
     functionName: "owner",
   }) as { data: `0x${string}` | undefined };
-
-  useEffect(() => {
-    if (isConnected && address && owner) {
-      setIsOwner(address.toLowerCase() === owner.toLowerCase());
-    } else {
-      setIsOwner(false);
-    }
-  }, [address, owner, isConnected]);
 
   // Read contract state
   const { data: isVipWhitelistMintActive } = useReadContract({
@@ -65,6 +58,28 @@ export default function Admin() {
     abi: CatcentNFTABI,
     functionName: "isPaused",
   });
+  const { data: totalSupply } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: CatcentNFTABI,
+    functionName: "totalSupply",
+  });
+  const { data: maxSupply } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: CatcentNFTABI,
+    functionName: "maxSupply",
+  });
+  const { data: contractBalance } = useBalance({
+    address: contractAddress as `0x${string}`,
+    chainId: monadTestnet.id,
+  });
+
+  useEffect(() => {
+    if (isConnected && address && owner) {
+      setIsOwner(address.toLowerCase() === owner.toLowerCase());
+    } else {
+      setIsOwner(false);
+    }
+  }, [address, owner, isConnected]);
 
   // Generate Merkle tree and proofs
   const generateMerkleTree = (addresses: string[]) => {
@@ -78,8 +93,8 @@ export default function Admin() {
     return { root, proofs };
   };
 
-  // Handle phase state updates
-  const handleSetPhaseState = async (state: string, value: boolean) => {
+  // Handle pause/unpause
+  const handleSetPaused = async (value: boolean) => {
     if (!isOwner) {
       toast.error("Only the contract owner can perform this action.", { position: "top-right", theme: "dark" });
       return;
@@ -89,58 +104,15 @@ export default function Admin() {
       return;
     }
     try {
-      let functionName: string;
-      if (state === "paused") functionName = "setPaused";
-      else if (state === "vip") functionName = "setVipWhitelistMintActive";
-      else if (state === "regular") functionName = "setRegularWhitelistMintActive";
-      else if (state === "public") functionName = "setPublicMintActive";
-      else return;
-
       await writeContractAsync({
         address: contractAddress as `0x${string}`,
         abi: CatcentNFTABI,
-        functionName,
+        functionName: "setPaused",
         args: [value],
       });
-      toast.success(`${state} state updated successfully!`, { position: "top-right", theme: "dark" });
+      toast.success(`Contract ${value ? "paused" : "unpaused"} successfully!`, { position: "top-right", theme: "dark" });
     } catch (error: unknown) {
-      toast.error(`Failed to update ${state} state: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
-    }
-  };
-
-  // Sync phase states based on current time
-  const syncPhaseStates = async () => {
-    if (!isOwner) {
-      toast.error("Only the contract owner can perform this action.", { position: "top-right", theme: "dark" });
-      return;
-    }
-    if (chain?.id !== monadTestnet.id) {
-      toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
-      return;
-    }
-    const now = Math.floor(Date.now() / 1000);
-    try {
-      await writeContractAsync({
-        address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
-        functionName: "setVipWhitelistMintActive",
-        args: [now >= parseInt(vipStartTime) && now < parseInt(vipEndTime)],
-      });
-      await writeContractAsync({
-        address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
-        functionName: "setRegularWhitelistMintActive",
-        args: [now >= parseInt(regularStartTime) && now < parseInt(regularEndTime)],
-      });
-      await writeContractAsync({
-        address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
-        functionName: "setPublicMintActive",
-        args: [now >= parseInt(publicStartTime)],
-      });
-      toast.success("Phase states synced successfully!", { position: "top-right", theme: "dark" });
-    } catch (error: unknown) {
-      toast.error(`Failed to sync phase states: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
+      toast.error(`Failed to update pause state: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
     }
   };
 
@@ -155,7 +127,6 @@ export default function Admin() {
       return;
     }
 
-    // Validate timestamps
     const vipStart = parseInt(vipStartTime);
     const vipEnd = parseInt(vipEndTime);
     const regularStart = parseInt(regularStartTime);
@@ -253,6 +224,60 @@ export default function Admin() {
     }
   };
 
+  // Handle base URI update
+  const handleSetBaseURI = async () => {
+    if (!isOwner) {
+      toast.error("Only the contract owner can perform this action.", { position: "top-right", theme: "dark" });
+      return;
+    }
+    if (chain?.id !== monadTestnet.id) {
+      toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
+      return;
+    }
+    if (!baseURI.startsWith("https://") || baseURI.length < 10) {
+      toast.error("Please provide a valid base URI.", { position: "top-right", theme: "dark" });
+      return;
+    }
+    try {
+      await writeContractAsync({
+        address: contractAddress as `0x${string}`,
+        abi: CatcentNFTABI,
+        functionName: "setBaseURI",
+        args: [baseURI],
+      });
+      toast.success("Base URI updated successfully!", { position: "top-right", theme: "dark" });
+    } catch (error: unknown) {
+      toast.error(`Failed to update base URI: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
+    }
+  };
+
+  // Handle withdraw funds
+  const handleWithdraw = async () => {
+    if (!isOwner) {
+      toast.error("Only the contract owner can perform this action.", { position: "top-right", theme: "dark" });
+      return;
+    }
+    if (chain?.id !== monadTestnet.id) {
+      toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
+      return;
+    }
+    if (!contractBalance?.value || contractBalance.value <= 0) {
+      toast.error("No funds available to withdraw.", { position: "top-right", theme: "dark" });
+      return;
+    }
+    try {
+      await writeContractAsync({
+        address: contractAddress as `0x${string}`,
+        abi: CatcentNFTABI,
+        functionName: "withdraw",
+        args: [],
+      });
+      toast.success("Funds withdrawn successfully!", { position: "top-right", theme: "dark" });
+    } catch (error: unknown) {
+      toast.error(`Failed to withdraw funds: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
+    }
+  };
+
   // Handle whitelist updates
   const handleSetWhitelists = async () => {
     if (!isOwner) {
@@ -324,47 +349,22 @@ export default function Admin() {
             {/* Phase States */}
             <div className="bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
               <h2 className="text-xl font-semibold text-yellow-200 mb-4">Phase States</h2>
+              <p>Total Supply: {totalSupply?.toString() || "0"} / {maxSupply?.toString() || "3535"}</p>
+              <p>Contract Balance: {(contractBalance?.value || BigInt(0)) / BigInt(1e18)} MONAD</p>
               <div className="flex flex-col gap-4">
                 <div>
-                  <p>VIP Whitelist Mint: {isVipWhitelistMintActive ? "Active" : "Inactive"}</p>
-                  <button
-                    onClick={() => handleSetPhaseState("vip", !isVipWhitelistMintActive)}
-                    disabled={isPending}
-                    className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
-                      isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
-                    }`}
-                  >
-                    {isPending ? "Processing..." : isVipWhitelistMintActive ? "Deactivate VIP" : "Activate VIP"}
-                  </button>
+                  <p>VIP Whitelist Mint (GTD): {isVipWhitelistMintActive ? "Active" : "Inactive"}</p>
                 </div>
                 <div>
-                  <p>Regular Whitelist Mint: {isRegularWhitelistMintActive ? "Active" : "Inactive"}</p>
-                  <button
-                    onClick={() => handleSetPhaseState("regular", !isRegularWhitelistMintActive)}
-                    disabled={isPending}
-                    className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
-                      isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
-                    }`}
-                  >
-                    {isPending ? "Processing..." : isRegularWhitelistMintActive ? "Deactivate Regular" : "Activate Regular"}
-                  </button>
+                  <p>Regular Whitelist Mint (FCFS): {isRegularWhitelistMintActive ? "Active" : "Inactive"}</p>
                 </div>
                 <div>
                   <p>Public Mint: {isPublicMintActive ? "Active" : "Inactive"}</p>
-                  <button
-                    onClick={() => handleSetPhaseState("public", !isPublicMintActive)}
-                    disabled={isPending}
-                    className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
-                      isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
-                    }`}
-                  >
-                    {isPending ? "Processing..." : isPublicMintActive ? "Deactivate Public" : "Activate Public"}
-                  </button>
                 </div>
                 <div>
                   <p>Contract Paused: {isPaused ? "Paused" : "Active"}</p>
                   <button
-                    onClick={() => handleSetPhaseState("paused", !isPaused)}
+                    onClick={() => handleSetPaused(!isPaused)}
                     disabled={isPending}
                     className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
                       isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
@@ -373,15 +373,6 @@ export default function Admin() {
                     {isPending ? "Processing..." : isPaused ? "Unpause Contract" : "Pause Contract"}
                   </button>
                 </div>
-                <button
-                  onClick={syncPhaseStates}
-                  disabled={isPending}
-                  className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
-                    isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
-                  }`}
-                >
-                  {isPending ? "Processing..." : "Sync Phase States"}
-                </button>
               </div>
             </div>
 
@@ -390,7 +381,7 @@ export default function Admin() {
               <h2 className="text-xl font-semibold text-yellow-200 mb-4">Phase Times</h2>
               <div className="flex flex-col gap-4">
                 <div>
-                  <label className="block text-sm">VIP Start Time</label>
+                  <label className="block text-sm">VIP Start Time (GTD)</label>
                   <DatePicker
                     selected={vipStartTime ? new Date(parseInt(vipStartTime) * 1000) : null}
                     onChange={(date: Date | null) =>
@@ -405,7 +396,7 @@ export default function Admin() {
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm">VIP End Time</label>
+                  <label className="block text-sm">VIP End Time (GTD)</label>
                   <DatePicker
                     selected={vipEndTime ? new Date(parseInt(vipEndTime) * 1000) : null}
                     onChange={(date: Date | null) =>
@@ -420,7 +411,7 @@ export default function Admin() {
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm">Regular Start Time</label>
+                  <label className="block text-sm">Regular Start Time (FCFS)</label>
                   <DatePicker
                     selected={regularStartTime ? new Date(parseInt(regularStartTime) * 1000) : null}
                     onChange={(date: Date | null) =>
@@ -435,7 +426,7 @@ export default function Admin() {
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm">Regular End Time</label>
+                  <label className="block text-sm">Regular End Time (FCFS)</label>
                   <DatePicker
                     selected={regularEndTime ? new Date(parseInt(regularEndTime) * 1000) : null}
                     onChange={(date: Date | null) =>
@@ -517,12 +508,57 @@ export default function Admin() {
               </div>
             </div>
 
+            {/* Base URI */}
+            <div className="bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
+              <h2 className="text-xl font-semibold text-yellow-200 mb-4">Base URI</h2>
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-sm">Base URI (Pinata)</label>
+                  <input
+                    type="text"
+                    value={baseURI}
+                    onChange={(e) => setBaseURI(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300"
+                    placeholder="https://teal-characteristic-reindeer-501.mypinata.cloud/ipfs/<CID>/"
+                  />
+                </div>
+                <button
+                  onClick={handleSetBaseURI}
+                  disabled={isPending}
+                  className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
+                    isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
+                  }`}
+                >
+                  {isPending ? "Processing..." : "Update Base URI"}
+                </button>
+              </div>
+            </div>
+
+            {/* Withdraw Funds */}
+            <div className="bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
+              <h2 className="text-xl font-semibold text-yellow-200 mb-4">Withdraw Funds</h2>
+              <div className="flex flex-col gap-4">
+                <p>Contract Balance: {(contractBalance?.value || BigInt(0)) / BigInt(1e18)} MONAD</p>
+                <button
+                  onClick={handleWithdraw}
+                  disabled={isPending || !contractBalance?.value || contractBalance.value <= 0}
+                  className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
+                    isPending || !contractBalance?.value || contractBalance.value <= 0
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:from-purple-700 hover:to-cyan-700"
+                  }`}
+                >
+                  {isPending ? "Processing..." : "Withdraw Funds"}
+                </button>
+              </div>
+            </div>
+
             {/* Whitelists */}
             <div className="bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
               <h2 className="text-xl font-semibold text-yellow-200 mb-4">Whitelists</h2>
               <div className="flex flex-col gap-4">
                 <div>
-                  <label className="block text-sm">VIP Whitelist Addresses (comma-separated)</label>
+                  <label className="block text-sm">VIP Whitelist Addresses (GTD, comma-separated)</label>
                   <textarea
                     value={vipAddresses}
                     onChange={(e) => setVipAddresses(e.target.value)}
@@ -532,7 +568,7 @@ export default function Admin() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm">Regular Whitelist Addresses (comma-separated)</label>
+                  <label className="block text-sm">Regular Whitelist Addresses (FCFS, comma-separated)</label>
                   <textarea
                     value={regularAddresses}
                     onChange={(e) => setRegularAddresses(e.target.value)}
@@ -558,12 +594,3 @@ export default function Admin() {
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
