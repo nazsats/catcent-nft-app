@@ -499,362 +499,366 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-cyan-300 font-poppins p-4 sm:p-6 md:p-8">
       <ToastContainer theme="dark" position="top-right" aria-live="polite" />
-      <div className="container mx-auto max-w-7xl">
-        {/* Header and Wallet Status */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-6">
-          <header className="text-center">
-            <div className="flex items-center justify-center space-x-4">
-              <Image
-                src="/catcent-logo.png"
-                alt="Catcent Logo"
-                width={64}
-                height={64}
-                className="rounded-full border-4 border-purple-600"
-                unoptimized
-                onError={(e) => {
-                  console.error("Logo image load failed");
-                  e.currentTarget.src = "/images/placeholder.png";
-                  e.currentTarget.onerror = null;
-                }}
-              />
-              <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500 drop-shadow-lg">
-                Catcent Testnet Drop
-              </h1>
-            </div>
-            <h2 className="text-xl md:text-2xl font-semibold mt-2 text-cyan-200">
-              Mint & Flex Your Early Degen Status
-            </h2>
-            <p className="text-sm text-yellow-200 mt-2">Current Phase: {currentPhase}</p>
-          </header>
-          <div className="w-full md:w-auto max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
-            {isConnected ? (
-              <div className="flex flex-col items-center gap-3">
-                <p className="text-sm font-semibold text-cyan-300">
-                  Connected: <span className="text-yellow-200">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
-                </p>
-                {chain?.id !== monadTestnet.id ? (
-                  <>
-                    <p className="text-xs text-pink-400 font-medium">Wrong network! Please switch to Monad Testnet.</p>
-                    <button
-                      onClick={() => switchChain({ chainId: monadTestnet.id })}
-                      className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-6 py-2 rounded-lg text-base font-semibold transition-all duration-300 focus:ring-2 focus:ring-yellow-500 transform hover:scale-105"
-                      aria-label="Switch to Monad Testnet"
-                    >
-                      Switch Network
-                    </button>
-                  </>
-                ) : (
-                  <p className="text-xs text-green-400 font-medium">Connected to Monad Testnet</p>
-                )}
-                <button
-                  onClick={handleDisconnect}
-                  className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white px-6 py-2 rounded-lg text-base font-semibold transition-all duration-300 focus:ring-2 focus:ring-red-500 transform hover:scale-105"
-                  aria-label="Disconnect wallet"
-                >
-                  Disconnect
-                </button>
-              </div>
-            ) : (
+<div className="container mx-auto max-w-7xl">
+  {/* Header and Wallet Status */}
+  <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-6">
+    <header className="flex flex-col justify-center items-center text-center">
+      <div className="flex items-center justify-center space-x-4">
+        <Image
+          src="/catcent-logo.png"
+          alt="Catcent Logo"
+          width={64}
+          height={64}
+          className="rounded-full border-4 border-purple-600"
+          unoptimized
+          onError={(e) => {
+            console.error("Logo image load failed");
+            e.currentTarget.src = "/images/placeholder.png";
+            e.currentTarget.onerror = null;
+          }}
+        />
+        <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500 drop-shadow-lg">
+          Catcents
+        </h1>
+      </div>
+    </header>
+    <div className="w-full md:w-auto max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
+      {isConnected ? (
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-sm font-semibold text-cyan-300">
+            Connected: <span className="text-yellow-200">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+          </p>
+          {chain?.id !== monadTestnet.id ? (
+            <>
+              <p className="text-xs text-pink-400 font-medium">Wrong network! Please switch to Monad Testnet.</p>
               <button
-                onClick={() => modal.open()}
-                className="w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-6 py-3 rounded-lg text-base font-semibold flex items-center justify-center transition-all duration-300 focus:ring-2 focus:ring-purple-500 transform hover:scale-105 hover:from-purple-700 hover:to-cyan-700"
-                aria-label="Connect wallet"
+                onClick={() => switchChain({ chainId: monadTestnet.id })}
+                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-6 py-2 rounded-lg text-base font-semibold transition-all duration-300 focus:ring-2 focus:ring-yellow-500 transform hover:scale-105"
+                aria-label="Switch to Monad Testnet"
               >
-                Connect Wallet
+                Switch Network
               </button>
+            </>
+          ) : (
+            <p className="text-xs text-green-400 font-medium">Connected to Monad Testnet</p>
+          )}
+          <button
+            onClick={handleDisconnect}
+            className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white px-6 py-2 rounded-lg text-base font-semibold transition-all duration-300 focus:ring-2 focus:ring-red-500 transform hover:scale-105"
+            aria-label="Disconnect wallet"
+          >
+            Disconnect
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => modal.open()}
+          className="w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center transition-all duration-300 focus:ring-2 focus:ring-purple-500 transform hover:scale-105 hover:from-purple-700 hover:to-cyan-700"
+          aria-label="Connect wallet"
+        >
+          Connect Wallet
+        </button>
+      )}
+    </div>
+  </div>
+
+  {/* New Title Section */}
+  <section className="mb-8 flex flex-col items-center justify-center text-center">
+    <h2 className="text-xl md:text-2xl font-semibold text-cyan-200">
+      Mint & Flex Your Early Degen Status
+    </h2>
+    <p className="text-sm text-yellow-200 mt-2">Current Phase: {currentPhase}</p>
+  </section>
+
+  {/* Main Content */}
+  <div className="flex flex-col md:grid md:grid-cols-3 gap-6">
+    {/* Left Section: NFT Image */}
+    <section className="order-1 flex justify-center items-center md:items-start animate-slide-in-left">
+      <div className="relative group max-w-md w-full">
+        <Image
+          src={imageError ? "/images/placeholder.png" : "/nft-images/catcent.png"}
+          alt="Catcent NFT"
+          width={500}
+          height={500}
+          className="w-full rounded-2xl shadow-2xl border-4 border-gradient-to-r from-purple-600 to-cyan-500 group-hover:scale-105 transition-transform duration-300"
+          priority
+          unoptimized
+          onError={(e) => {
+            console.error("NFT image load failed");
+            setImageError(true);
+            e.currentTarget.src = "/images/placeholder.png";
+            e.currentTarget.onerror = null;
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-500 opacity-0 group-hover:opacity-20 rounded-2xl transition-opacity duration-300" />
+      </div>
+    </section>
+
+    {/* Center Section: Mint Phases */}
+    <section className="order-2 flex flex-col gap-6 items-center animate-slide-in-up">
+      <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
+        <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Phases</h3>
+        {contractError ? (
+          <p className="text-center text-red-400">Error loading contract data. Please try again later.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {/* Active & Purring */}
+            <div
+              className={`flex items-center justify-between p-3 rounded-lg ${
+                isPaused ? "bg-red-800" : "bg-green-800"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xl" aria-label={isPaused ? "Contract Paused" : "Contract Active"}>
+                  {isPaused ? <FaLock /> : <FaUnlock />}
+                </span>
+                <span className="text-lg font-bold text-cyan-200">Active & Purring</span>
+              </div>
+              <span className={`text-sm font-semibold ${isPaused ? "text-red-400" : "text-green-400"}`}>
+                {isPaused ? "Paused" : "Active"}
+              </span>
+            </div>
+            {/* VIP Whitelist */}
+            <div
+              className={`flex items-center justify-between p-3 rounded-lg ${
+                isVipEligible ? "bg-gradient-to-r from-purple-600 to-cyan-600" : Number(vipWhitelistMinted) > 0 ? "bg-green-600" : "bg-gray-800"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xl" aria-label={isVipEligible ? "VIP Whitelist Unlocked" : Number(vipWhitelistMinted) > 0 ? "VIP Whitelist Minted" : "VIP Whitelist Locked"}>
+                  {isVipEligible || Number(vipWhitelistMinted) > 0 ? <FaUnlock /> : <FaLock />}
+                </span>
+                <span className="text-lg font-bold text-cyan-200">GTD (Early)</span>
+              </div>
+              <span className={`text-sm font-semibold ${isVipEligible ? "text-green-400" : Number(vipWhitelistMinted) > 0 ? "text-green-400" : "text-red-400"}`}>
+                {Number(vipWhitelistMinted) > 0 ? "Minted" : isVipEligible ? "Eligible" : "Not Eligible"}
+              </span>
+            </div>
+            {isConnected && (
+              <p className="text-xs text-cyan-300 pl-10">
+                Limit: {vipMerkleProof.length > 0 ? `${Number(vipWhitelistMinted)}/1` : "Not Whitelisted"}
+              </p>
+            )}
+            <CountdownTimer
+              startTime={Number(vipWhitelistStartTime)}
+              endTime={Number(vipWhitelistEndTime)}
+              phase="VIP"
+            />
+            {/* Regular Whitelist */}
+            <div
+              className={`flex items-center justify-between p-3 rounded-lg ${
+                isRegularEligible ? "bg-gradient-to-r from-purple-600 to-cyan-600" : Number(regularWhitelistMinted) > 0 ? "bg-green-600" : "bg-gray-800"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xl" aria-label={isRegularEligible ? "Regular Whitelist Unlocked" : Number(regularWhitelistMinted) > 0 ? "Regular Whitelist Minted" : "Regular Whitelist Locked"}>
+                  {isRegularEligible || Number(regularWhitelistMinted) > 0 ? <FaUnlock /> : <FaLock />}
+                </span>
+                <span className="text-lg font-bold text-cyan-200">FCFS</span>
+              </div>
+              <span className={`text-sm font-semibold ${isRegularEligible ? "text-green-400" : Number(regularWhitelistMinted) > 0 ? "text-green-400" : "text-red-400"}`}>
+                {Number(regularWhitelistMinted) > 0 ? "Minted" : isRegularEligible ? "Eligible" : "Not Eligible"}
+              </span>
+            </div>
+            {isConnected && (
+              <p className="text-xs text-cyan-300 pl-10">
+                Limit: {(regularMerkleProof.length > 0 || vipMerkleProof.length > 0) ? `${Number(regularWhitelistMinted)}/1` : "Not Whitelisted"}
+              </p>
+            )}
+            <CountdownTimer
+              startTime={Number(regularWhitelistStartTime)}
+              endTime={Number(regularWhitelistEndTime)}
+              phase="Regular"
+            />
+            {/* Public Mint */}
+            <div
+              className={`flex items-center justify-between p-3 rounded-lg ${
+                isPublicEligible && isPublicPhaseActive && isPublicMintActive ? "bg-gradient-to-r from-purple-600 to-cyan-600" : isPublicEligible ? "bg-purple-800" : "bg-gray-800"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xl" aria-label={isPublicEligible ? "Public Mint Eligible" : "Public Mint Locked"}>
+                  {isPublicEligible ? <FaUnlock /> : <FaLock />}
+                </span>
+                <span className="text-lg font-bold text-cyan-200">Public</span>
+              </div>
+              <span className={`text-sm font-semibold ${isPublicEligible && isPublicPhaseActive && isPublicMintActive ? "text-green-400" : isPublicEligible ? "text-yellow-400" : "text-red-400"}`}>
+                {isPublicEligible && isPublicPhaseActive && isPublicMintActive ? "Live" : isPublicEligible ? "Eligible" : "Not Eligible"}
+              </span>
+            </div>
+            {isConnected && <p className="text-xs text-cyan-300 pl-10">Limit: Up to 10 per transaction</p>}
+            <CountdownTimer
+              startTime={Number(publicMintStartTime)}
+              endTime={Number(publicMintEndTime)}
+              phase="Public"
+            />
+          </div>
+        )}
+      </div>
+    </section>
+
+    {/* Right Section: Mint Your NFT & Mint Progress */}
+    <section className="order-3 flex flex-col gap-6 items-center animate-slide-in-right">
+      {isConnected && (
+        <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
+          <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Your NFT</h3>
+          {contractError ? (
+            <p className="text-center text-red-400">Error loading contract data. Please try again later.</p>
+          ) : (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-sm text-cyan-300">
+                Mint Price: <span className="font-semibold text-yellow-200">{(Number(mintPrice) / 1e18).toString()} MONAD</span>
+              </p>
+              <p className="text-sm text-cyan-300">
+                Your NFTs: <span className="font-semibold text-yellow-200">{balance.toString()}</span>
+              </p>
+              {userBalance && (
+                <p className="text-sm text-cyan-300">
+                  Your Balance: <span className="font-semibold text-yellow-200">{(Number(userBalance.value) / 1e18).toFixed(4)} MONAD</span>
+                </p>
+              )}
+              {gasEstimate && (
+                <p className="text-xs text-gray-400">
+                  Estimated Gas: {(Number(gasEstimate) / 1e18).toFixed(6)} MONAD
+                </p>
+              )}
+              {Number(totalSupply) >= Number(maxSupply) ? (
+                <p className="text-xs text-red-400">Collection is sold out!</p>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleDecrease}
+                      disabled={numberOfTokens <= 1 || isVipEligible || isRegularEligible}
+                      className="w-10 h-10 bg-gradient-to-r from-purple-600 to-cyan-600 text-white rounded-full flex items-center justify-center text-xl font-bold hover:from-purple-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 focus:ring-2 focus:ring-purple-500"
+                      aria-label="Decrease number of tokens"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      value={numberOfTokens}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        if (!isNaN(value) && value >= 1 && value <= (isVipEligible || isRegularEligible ? 1 : 10)) {
+                          setNumberOfTokens(value);
+                          setIsInputValid(true);
+                        } else {
+                          setIsInputValid(false);
+                        }
+                      }}
+                      className={`w-16 p-2 text-center rounded-lg border-2 ${
+                        isInputValid ? "border-purple-600" : "border-pink-500 animate-shake"
+                      } bg-gray-800 text-cyan-300 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all`}
+                      min="1"
+                      max={isVipEligible || isRegularEligible ? "1" : "10"}
+                      aria-label="Number of NFTs to mint"
+                      aria-invalid={!isInputValid}
+                    />
+                    <button
+                      onClick={handleIncrease}
+                      disabled={numberOfTokens >= (isVipEligible || isRegularEligible ? 1 : 10)}
+                      className="w-10 h-10 bg-gradient-to-r from-purple-600 to-cyan-600 text-white rounded-full flex items-center justify-center text-xl font-bold hover:from-purple-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 focus:ring-2 focus:ring-purple-500"
+                      aria-label="Increase number of tokens"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleMint}
+                    disabled={isMintButtonDisabled}
+                    aria-disabled={isMintButtonDisabled}
+                    className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-6 py-3 rounded-lg text-base font-semibold flex items-center justify-center transition-all duration-300 focus:ring-2 focus:ring-purple-500 ${
+                      isMintButtonDisabled
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:from-purple-700 hover:to-cyan-700 transform hover:scale-105"
+                    }`}
+                    aria-label={isPending ? "Minting in progress" : "Mint NFT"}
+                  >
+                    {isPending ? (
+                      <>
+                        <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                        </svg>
+                        Minting...
+                      </>
+                    ) : (
+                      "Mint NFT"
+                    )}
+                  </button>
+                </>
+              )}
+              <div className="relative group">
+                <p className="text-xs text-cyan-300 text-center">
+                  Need testnet MONAD?{" "}
+                  <a
+                    href="https://discord.com/invite/TXPbt7ztMC"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-yellow-200 underline hover:text-yellow-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    Get it from the Monad faucet
+                  </a>
+                </p>
+                <span className="absolute invisible group-hover:visible bg-gray-900 text-cyan-300 text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
+                  Request testnet MONAD for minting
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mint Progress */}
+      <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
+        <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Progress</h3>
+        {contractError ? (
+          <p className="text-center text-red-400">Error loading contract data. Please try again later.</p>
+        ) : (
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-sm text-cyan-300">
+              Minted: <span className="font-semibold text-yellow-200">{totalSupply.toString()} / {maxSupply.toString()}</span>
+            </p>
+            <div
+              className="w-full max-w-xs bg-gray-800 rounded-full h-3 relative overflow-hidden"
+              role="progressbar"
+              aria-valuenow={Math.round((Number(totalSupply) / Number(maxSupply)) * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div
+                className="bg-gradient-to-r from-purple-600 to-cyan-500 h-3 rounded-full transition-all duration-500"
+                style={{ width: `${(Number(totalSupply) / Number(maxSupply)) * 100}%` }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-500 opacity-20" />
+            </div>
+            <p className="text-xs font-bold text-cyan-300">
+              {Math.round((Number(totalSupply) / Number(maxSupply)) * 100)}% Minted
+            </p>
+            {Number(totalSupply) >= Number(maxSupply) && (
+              <p className="text-xs text-red-400">Collection is sold out!</p>
             )}
           </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex flex-col md:grid md:grid-cols-3 gap-6">
-          {/* Left Section: NFT Image */}
-          <section className="order-1 flex justify-center items-center md:items-start animate-slide-in-left">
-            <div className="relative group max-w-md w-full">
-              <Image
-                src={imageError ? "/images/placeholder.png" : "/nft-images/catcent.png"}
-                alt="Catcent NFT"
-                width={500}
-                height={500}
-                className="w-full rounded-2xl shadow-2xl border-4 border-gradient-to-r from-purple-600 to-cyan-500 group-hover:scale-105 transition-transform duration-300"
-                priority
-                unoptimized
-                onError={(e) => {
-                  console.error("NFT image load failed");
-                  setImageError(true);
-                  e.currentTarget.src = "/images/placeholder.png";
-                  e.currentTarget.onerror = null;
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-500 opacity-0 group-hover:opacity-20 rounded-2xl transition-opacity duration-300" />
-            </div>
-          </section>
-
-          {/* Center Section: Mint Phases */}
-          <section className="order-3 md:order-2 flex flex-col gap-6 items-center animate-slide-in-up">
-            <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
-              <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Phases</h3>
-              {contractError ? (
-                <p className="text-center text-red-400">Error loading contract data. Please try again later.</p>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {/* Active & Purring */}
-                  <div
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      isPaused ? "bg-red-800" : "bg-green-800"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-label={isPaused ? "Contract Paused" : "Contract Active"}>
-                        {isPaused ? <FaLock /> : <FaUnlock />}
-                      </span>
-                      <span className="text-lg font-bold text-cyan-200">Active & Purring</span>
-                    </div>
-                    <span className={`text-sm font-semibold ${isPaused ? "text-red-400" : "text-green-400"}`}>
-                      {isPaused ? "Paused" : "Active"}
-                    </span>
-                  </div>
-                  {/* VIP Whitelist */}
-                  <div
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      isVipEligible ? "bg-gradient-to-r from-purple-600 to-cyan-600" : Number(vipWhitelistMinted) > 0 ? "bg-green-600" : "bg-gray-800"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-label={isVipEligible ? "VIP Whitelist Unlocked" : Number(vipWhitelistMinted) > 0 ? "VIP Whitelist Minted" : "VIP Whitelist Locked"}>
-                        {isVipEligible || Number(vipWhitelistMinted) > 0 ? <FaUnlock /> : <FaLock />}
-                      </span>
-                      <span className="text-lg font-bold text-cyan-200">GTD (VIP)</span>
-                    </div>
-                    <span className={`text-sm font-semibold ${isVipEligible ? "text-green-400" : Number(vipWhitelistMinted) > 0 ? "text-green-400" : "text-red-400"}`}>
-                      {Number(vipWhitelistMinted) > 0 ? "Minted" : isVipEligible ? "Eligible" : "Not Eligible"}
-                    </span>
-                  </div>
-                  {isConnected && (
-                    <p className="text-xs text-cyan-300 pl-10">
-                      Limit: {vipMerkleProof.length > 0 ? `${Number(vipWhitelistMinted)}/1` : "Not Whitelisted"}
-                    </p>
-                  )}
-                  <CountdownTimer
-                    startTime={Number(vipWhitelistStartTime)}
-                    endTime={Number(vipWhitelistEndTime)}
-                    phase="VIP"
-                  />
-                  {/* Regular Whitelist */}
-                  <div
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      isRegularEligible ? "bg-gradient-to-r from-purple-600 to-cyan-600" : Number(regularWhitelistMinted) > 0 ? "bg-green-600" : "bg-gray-800"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-label={isRegularEligible ? "Regular Whitelist Unlocked" : Number(regularWhitelistMinted) > 0 ? "Regular Whitelist Minted" : "Regular Whitelist Locked"}>
-                        {isRegularEligible || Number(regularWhitelistMinted) > 0 ? <FaUnlock /> : <FaLock />}
-                      </span>
-                      <span className="text-lg font-bold text-cyan-200">FCFS</span>
-                    </div>
-                    <span className={`text-sm font-semibold ${isRegularEligible ? "text-green-400" : Number(regularWhitelistMinted) > 0 ? "text-green-400" : "text-red-400"}`}>
-                      {Number(regularWhitelistMinted) > 0 ? "Minted" : isRegularEligible ? "Eligible" : "Not Eligible"}
-                    </span>
-                  </div>
-                  {isConnected && (
-                    <p className="text-xs text-cyan-300 pl-10">
-                      Limit: {(regularMerkleProof.length > 0 || vipMerkleProof.length > 0) ? `${Number(regularWhitelistMinted)}/1` : "Not Whitelisted"}
-                    </p>
-                  )}
-                  <CountdownTimer
-                    startTime={Number(regularWhitelistStartTime)}
-                    endTime={Number(regularWhitelistEndTime)}
-                    phase="Regular"
-                  />
-                  {/* Public Mint */}
-                  <div
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      isPublicEligible && isPublicPhaseActive && isPublicMintActive ? "bg-gradient-to-r from-purple-600 to-cyan-600" : isPublicEligible ? "bg-purple-800" : "bg-gray-800"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-label={isPublicEligible ? "Public Mint Eligible" : "Public Mint Locked"}>
-                        {isPublicEligible ? <FaUnlock /> : <FaLock />}
-                      </span>
-                      <span className="text-lg font-bold text-cyan-200">Public</span>
-                    </div>
-                    <span className={`text-sm font-semibold ${isPublicEligible && isPublicPhaseActive && isPublicMintActive ? "text-green-400" : isPublicEligible ? "text-yellow-400" : "text-red-400"}`}>
-                      {isPublicEligible && isPublicPhaseActive && isPublicMintActive ? "Live" : isPublicEligible ? "Eligible" : "Not Eligible"}
-                    </span>
-                  </div>
-                  {isConnected && <p className="text-xs text-cyan-300 pl-10">Limit: Up to 10 per transaction</p>}
-                  <CountdownTimer
-                    startTime={Number(publicMintStartTime)}
-                    endTime={Number(publicMintEndTime)}
-                    phase="Public"
-                  />
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Right Section: Mint Your NFT & Mint Progress */}
-          <section className="order-4 md:order-3 flex flex-col gap-6 items-center animate-slide-in-right">
-            {isConnected && (
-              <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
-                <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Your NFT</h3>
-                {contractError ? (
-                  <p className="text-center text-red-400">Error loading contract data. Please try again later.</p>
-                ) : (
-                  <div className="flex flex-col items-center gap-3">
-                    <p className="text-sm text-cyan-300">
-                      Mint Price: <span className="font-semibold text-yellow-200">{(Number(mintPrice) / 1e18).toString()} MONAD</span>
-                    </p>
-                    <p className="text-sm text-cyan-300">
-                      Your NFTs: <span className="font-semibold text-yellow-200">{balance.toString()}</span>
-                    </p>
-                    {userBalance && (
-                      <p className="text-sm text-cyan-300">
-                        Your Balance: <span className="font-semibold text-yellow-200">{(Number(userBalance.value) / 1e18).toFixed(4)} MONAD</span>
-                      </p>
-                    )}
-                    {gasEstimate && (
-                      <p className="text-xs text-gray-400">
-                        Estimated Gas: {(Number(gasEstimate) / 1e18).toFixed(6)} MONAD
-                      </p>
-                    )}
-                    {Number(totalSupply) >= Number(maxSupply) ? (
-                      <p className="text-xs text-red-400">Collection is sold out!</p>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={handleDecrease}
-                            disabled={numberOfTokens <= 1 || isVipEligible || isRegularEligible}
-                            className="w-10 h-10 bg-gradient-to-r from-purple-600 to-cyan-600 text-white rounded-full flex items-center justify-center text-xl font-bold hover:from-purple-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 focus:ring-2 focus:ring-purple-500"
-                            aria-label="Decrease number of tokens"
-                          >
-                            -
-                          </button>
-                          <input
-                            type="number"
-                            value={numberOfTokens}
-                            onChange={(e) => {
-                              const value = parseInt(e.target.value);
-                              if (!isNaN(value) && value >= 1 && value <= (isVipEligible || isRegularEligible ? 1 : 10)) {
-                                setNumberOfTokens(value);
-                                setIsInputValid(true);
-                              } else {
-                                setIsInputValid(false);
-                              }
-                            }}
-                            className={`w-16 p-2 text-center rounded-lg border-2 ${
-                              isInputValid ? "border-purple-600" : "border-pink-500 animate-shake"
-                            } bg-gray-800 text-cyan-300 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all`}
-                            min="1"
-                            max={isVipEligible || isRegularEligible ? "1" : "10"}
-                            aria-label="Number of NFTs to mint"
-                            aria-invalid={!isInputValid}
-                          />
-                          <button
-                            onClick={handleIncrease}
-                            disabled={numberOfTokens >= (isVipEligible || isRegularEligible ? 1 : 10)}
-                            className="w-10 h-10 bg-gradient-to-r from-purple-600 to-cyan-600 text-white rounded-full flex items-center justify-center text-xl font-bold hover:from-purple-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 focus:ring-2 focus:ring-purple-500"
-                            aria-label="Increase number of tokens"
-                          >
-                            +
-                          </button>
-                        </div>
-                        <button
-                          onClick={handleMint}
-                          disabled={isMintButtonDisabled}
-                          aria-disabled={isMintButtonDisabled}
-                          className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-6 py-3 rounded-lg text-base font-semibold flex items-center justify-center transition-all duration-300 focus:ring-2 focus:ring-purple-500 ${
-                            isMintButtonDisabled
-                              ? "opacity-50 cursor-not-allowed"
-                              : "hover:from-purple-700 hover:to-cyan-700 transform hover:scale-105"
-                          }`}
-                          aria-label={isPending ? "Minting in progress" : "Mint NFT"}
-                        >
-                          {isPending ? (
-                            <>
-                              <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                              </svg>
-                              Minting...
-                            </>
-                          ) : (
-                            "Mint NFT"
-                          )}
-                        </button>
-                      </>
-                    )}
-                    <div className="relative group">
-                      <p className="text-xs text-cyan-300 text-center">
-                        Need testnet MONAD?{" "}
-                        <a
-                          href="https://discord.com/invite/TXPbt7ztMC"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-yellow-200 underline hover:text-yellow-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        >
-                          Get it from the Monad faucet
-                        </a>
-                      </p>
-                      <span className="absolute invisible group-hover:visible bg-gray-900 text-cyan-300 text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
-                        Request testnet MONAD for minting
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Mint Progress */}
-            <div className="order-5 w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
-              <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Progress</h3>
-              {contractError ? (
-                <p className="text-center text-red-400">Error loading contract data. Please try again later.</p>
-              ) : (
-                <div className="flex flex-col items-center gap-3">
-                  <p className="text-sm text-cyan-300">
-                    Minted: <span className="font-semibold text-yellow-200">{totalSupply.toString()} / {maxSupply.toString()}</span>
-                  </p>
-                  <div
-                    className="w-full max-w-xs bg-gray-800 rounded-full h-3 relative overflow-hidden"
-                    role="progressbar"
-                    aria-valuenow={Math.round((Number(totalSupply) / Number(maxSupply)) * 100)}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                  >
-                    <div
-                      className="bg-gradient-to-r from-purple-600 to-cyan-500 h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${(Number(totalSupply) / Number(maxSupply)) * 100}%` }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-500 opacity-20" />
-                  </div>
-                  <p className="text-xs font-bold text-cyan-300">
-                    {Math.round((Number(totalSupply) / Number(maxSupply)) * 100)}% Minted
-                  </p>
-                  {Number(totalSupply) >= Number(maxSupply) && (
-                    <p className="text-xs text-red-400">Collection is sold out!</p>
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
-
-        {/* Footer */}
-        <footer className="mt-8 text-center text-cyan-300">
-          <p className="text-sm">
-            Join our community:{" "}
-            <a href="https://discord.com/invite/TXPbt7ztMC" target="_blank" rel="noopener noreferrer" className="text-yellow-200 underline">
-              Discord
-            </a>{" "}
-            |{" "}
-            <a href="https://x.com/CatCentsio/" target="_blank" rel="noopener noreferrer" className="text-yellow-200 underline">
-              X
-            </a>
-          </p>
-        </footer>
+        )}
       </div>
+    </section>
+  </div>
+
+  {/* Footer */}
+  <footer className="mt-8 text-center text-cyan-300">
+    <p className="text-sm">
+      Join our community:{" "}
+      <a href="https://discord.com/invite/TXPbt7ztMC" target="_blank" rel="noopener noreferrer" className="text-yellow-200 underline">
+        Discord
+      </a>{" "}
+      |{" "}
+      <a href="https://x.com/CatCentsio/" target="_blank" rel="noopener noreferrer" className="text-yellow-200 underline">
+        X
+      </a>
+    </p>
+  </footer>
+</div>
     </main>
   );
 }
