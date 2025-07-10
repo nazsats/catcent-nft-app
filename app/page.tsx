@@ -107,22 +107,22 @@ export default function Home() {
     : BigInt(0);
   const vipWhitelistStartTime: bigint = typeof rawVipWhitelistStartTime === 'string' || typeof rawVipWhitelistStartTime === 'number' || typeof rawVipWhitelistStartTime === 'bigint'
     ? BigInt(rawVipWhitelistStartTime)
-    : BigInt(1752117600); // 08:00 UTC, July 10, 2025
+    : BigInt(1752112800); // 14:00 UTC, July 10, 2025
   const vipWhitelistEndTime: bigint = typeof rawVipWhitelistEndTime === 'string' || typeof rawVipWhitelistEndTime === 'number' || typeof rawVipWhitelistEndTime === 'bigint'
     ? BigInt(rawVipWhitelistEndTime)
-    : BigInt(1752118800); // 08:20 UTC
+    : BigInt(1752120000); // 16:00 UTC
   const regularWhitelistStartTime: bigint = typeof rawRegularWhitelistStartTime === 'string' || typeof rawRegularWhitelistStartTime === 'number' || typeof rawRegularWhitelistStartTime === 'bigint'
     ? BigInt(rawRegularWhitelistStartTime)
-    : BigInt(1752118800); // 08:20 UTC
+    : BigInt(1752120000); // 16:00 UTC
   const regularWhitelistEndTime: bigint = typeof rawRegularWhitelistEndTime === 'string' || typeof rawRegularWhitelistEndTime === 'number' || typeof rawRegularWhitelistEndTime === 'bigint'
     ? BigInt(rawRegularWhitelistEndTime)
-    : BigInt(1752119400); // 08:30 UTC
+    : BigInt(1752127200); // 18:00 UTC
   const publicMintStartTime: bigint = typeof rawPublicMintStartTime === 'string' || typeof rawPublicMintStartTime === 'number' || typeof rawPublicMintStartTime === 'bigint'
     ? BigInt(rawPublicMintStartTime)
-    : BigInt(1752119400); // 08:30 UTC
+    : BigInt(1752127200); // 18:00 UTC
   const publicMintEndTime: bigint = typeof rawPublicMintEndTime === 'string' || typeof rawPublicMintEndTime === 'number' || typeof rawPublicMintEndTime === 'bigint'
     ? BigInt(rawPublicMintEndTime)
-    : BigInt(1754548799); // July 31, 2025, 23:59 UTC
+    : BigInt(1752300000); // July 31, 2025, 23:59 UTC
 
   // Fetch user balance
   const { data: userBalance } = useBalance({
