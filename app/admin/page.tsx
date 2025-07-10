@@ -16,12 +16,12 @@ import "react-datepicker/dist/react-datepicker.css";
 export default function Admin() {
   const { isConnected, address, chain } = useAccount();
   const { writeContractAsync, isPending } = useWriteContract();
-  const [vipStartTime, setVipStartTime] = useState("1752117600"); // July 10, 2025, 08:00 UTC
-  const [vipEndTime, setVipEndTime] = useState("1752118800");     // July 10, 2025, 08:20 UTC
-  const [regularStartTime, setRegularStartTime] = useState("1752118800"); // July 10, 2025, 08:20 UTC
-  const [regularEndTime, setRegularEndTime] = useState("1752119400");     // July 10, 2025, 08:30 UTC
-  const [publicStartTime, setPublicStartTime] = useState("1752119400");   // July 10, 2025, 08:30 UTC
-  const [publicEndTime, setPublicEndTime] = useState("1754548799");       // July 31, 2025, 23:59 UTC
+  const [vipStartTime, setVipStartTime] = useState("1752112800"); // July 10, 2025, 14:00 UTC
+  const [vipEndTime, setVipEndTime] = useState("1752120000");     // July 10, 2025, 16:00 UTC
+  const [regularStartTime, setRegularStartTime] = useState("1752120000"); // July 10, 2025, 16:00 UTC
+  const [regularEndTime, setRegularEndTime] = useState("1752127200");     // July 10, 2025, 18:00 UTC
+  const [publicStartTime, setPublicStartTime] = useState("1752127200");   // July 10, 2025, 18:00 UTC
+  const [publicEndTime, setPublicEndTime] = useState("1752300000");       // July 31, 2025, 23:59 UTC
   const [mintPrice, setMintPrice] = useState("3.55");
   const [vipAddresses, setVipAddresses] = useState("");
   const [regularAddresses, setRegularAddresses] = useState("");
@@ -90,7 +90,7 @@ export default function Admin() {
   };
 
   // Handle pause/unpause
-  const handleSetPaused = async (value: boolean) => {
+  const handleSetPaused = async () => {
     if (!isOwner) {
       toast.error("Only the contract owner can perform this action.", { position: "top-right", theme: "dark" });
       return;
@@ -104,10 +104,11 @@ export default function Admin() {
         address: contractAddress as `0x${string}`,
         abi: CatcentNFTABI,
         functionName: "setPaused",
-        args: [value],
+        args: [!isPaused],
       });
-      toast.success(`Contract ${value ? "paused" : "unpaused"} successfully!`, { position: "top-right", theme: "dark" });
+      toast.success(`Contract ${isPaused ? "unpaused" : "paused"} successfully!`, { position: "top-right", theme: "dark" });
     } catch (error: unknown) {
+      console.error("Pause/unpause error:", error);
       toast.error(`Failed to update pause state: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
     }
   };
@@ -189,6 +190,7 @@ export default function Admin() {
       });
       toast.success("Phase times updated successfully!", { position: "top-right", theme: "dark" });
     } catch (error: unknown) {
+      console.error("Phase times update error:", error);
       toast.error(`Failed to update phase times: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
     }
   };
@@ -216,6 +218,7 @@ export default function Admin() {
       });
       toast.success("Mint price updated successfully!", { position: "top-right", theme: "dark" });
     } catch (error: unknown) {
+      console.error("Mint price update error:", error);
       toast.error(`Failed to update mint price: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
     }
   };
@@ -243,6 +246,7 @@ export default function Admin() {
       });
       toast.success("Base URI updated successfully!", { position: "top-right", theme: "dark" });
     } catch (error: unknown) {
+      console.error("Base URI update error:", error);
       toast.error(`Failed to update base URI: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
     }
   };
@@ -270,6 +274,7 @@ export default function Admin() {
       });
       toast.success("Funds withdrawn successfully!", { position: "top-right", theme: "dark" });
     } catch (error: unknown) {
+      console.error("Withdraw error:", error);
       toast.error(`Failed to withdraw funds: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
     }
   };
@@ -337,7 +342,7 @@ export default function Admin() {
 
       toast.success("Whitelists updated successfully!", { position: "top-right", theme: "dark" });
     } catch (error: unknown) {
-      console.error("Whitelist update error:", error);
+      console.error("Whitelist update error:", error); // Use the error variable to fix ESLint
       toast.error(`Failed to update whitelists: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
     }
   };
@@ -375,7 +380,7 @@ export default function Admin() {
                 <div>
                   <p>Contract Paused: {isPaused ? "Paused" : "Active"}</p>
                   <button
-                    onClick={() => handleSetPaused(!isPaused)}
+                    onClick={handleSetPaused}
                     disabled={isPending}
                     className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
                       isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
@@ -583,7 +588,8 @@ export default function Admin() {
                             const json = JSON.parse(text);
                             setVipAddresses(json.vipAddresses?.join(",") || "");
                             setRegularAddresses(json.regularAddresses?.join(",") || "");
-                          } catch (error) {
+                          } catch (error: unknown) {
+                            console.error("JSON parsing error:", error);
                             toast.error("Invalid JSON file.", { position: "top-right", theme: "dark" });
                           }
                         };
