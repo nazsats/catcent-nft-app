@@ -304,31 +304,27 @@ export default function Admin() {
         return;
       }
 
-      const maxAddresses = 10000; // Adjust as needed
+      const maxAddresses = 10000;
       if (vipAddrs.length > maxAddresses || regularAddrs.length > maxAddresses) {
         toast.error(`Too many addresses. Maximum allowed is ${maxAddresses}.`, { position: "top-right", theme: "dark" });
         return;
       }
 
-      const batchSize = 1000; // Store 1,000 addresses per document (~42 KB)
+      const batchSize = 1000;
 
       const saveAddresses = async (addresses: string[], type: "gtd" | "fcfs") => {
         if (addresses.length === 0) return;
-        // Generate Merkle root
         const merkle = generateMerkleTree(addresses);
-        // Update Merkle root on-chain
         await writeContractAsync({
           address: contractAddress as `0x${string}`,
           abi: CatcentNFTABI,
           functionName: type === "gtd" ? "setVipMerkleRoot" : "setRegularMerkleRoot",
           args: [merkle.root],
         });
-        // Split addresses into batches for Firestore
         const batches = [];
         for (let i = 0; i < addresses.length; i += batchSize) {
           batches.push(addresses.slice(i, i + batchSize));
         }
-        // Write each batch to Firestore
         for (let i = 0; i < batches.length; i++) {
           await setDoc(doc(db, "whitelists", `${type}_addresses_batch_${i + 1}`), {
             merkleRoot: merkle.root,
@@ -342,7 +338,7 @@ export default function Admin() {
 
       toast.success("Whitelists updated successfully!", { position: "top-right", theme: "dark" });
     } catch (error: unknown) {
-      console.error("Whitelist update error:", error); // Use the error variable to fix ESLint
+      console.error("Whitelist update error:", error);
       toast.error(`Failed to update whitelists: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
     }
   };

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import CatcentNFTABI from "./CatcentNFT.json";
 import { db } from "@/firebase";
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import { monadTestnet } from "@reown/appkit/networks";
 import { contractAddress } from "@/config";
 import { ToastContainer, toast } from "react-toastify";
@@ -12,12 +12,8 @@ import "react-toastify/dist/ReactToastify.css";
 import { encodeFunctionData, type Abi } from "viem";
 import { modal } from "@/context";
 import { FaLock, FaUnlock } from "react-icons/fa";
-import { MerkleTree } from "merkletreejs";
-import keccak256 from "keccak256";
-// Uncomment for Cloud Function
-// import { getFunctions, httpsCallable } from "firebase/functions";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
-// Explicitly type the ABI
 const typedCatcentNFTABI = CatcentNFTABI as Abi;
 
 export default function Home() {
@@ -51,6 +47,8 @@ export default function Home() {
     { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "regularWhitelistEndTime" },
     { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "publicMintStartTime" },
     { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "publicMintEndTime" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "vipMerkleRoot" },
+    { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "regularMerkleRoot" },
   ] as const;
 
   const { data: contractData, isLoading, error: contractError } = useReadContracts({
@@ -66,7 +64,7 @@ export default function Home() {
     }
   }, [contractError]);
 
-  // Extract contract data with explicit fallbacks
+  // Extract contract data
   const [
     rawPublicMintActive,
     rawVipWhitelistMintActive,
@@ -84,9 +82,11 @@ export default function Home() {
     rawRegularWhitelistEndTime,
     rawPublicMintStartTime,
     rawPublicMintEndTime,
+    rawVipMerkleRoot,
+    rawRegularMerkleRoot,
   ] = (contractData || []).map((result) => result.result ?? undefined);
 
-  // Explicitly type and provide fallbacks with type guards
+  // Type conversion with fallbacks
   const isPublicMintActive: boolean = Boolean(rawPublicMintActive);
   const isVipWhitelistMintActive: boolean = Boolean(rawVipWhitelistMintActive);
   const isRegularWhitelistMintActive: boolean = Boolean(rawRegularWhitelistMintActive);
@@ -127,6 +127,8 @@ export default function Home() {
   const publicMintEndTime: bigint = typeof rawPublicMintEndTime === 'string' || typeof rawPublicMintEndTime === 'number' || typeof rawPublicMintEndTime === 'bigint'
     ? BigInt(rawPublicMintEndTime)
     : BigInt(1752300000); // July 31, 2025, 23:59 UTC
+  const vipMerkleRoot: string = typeof rawVipMerkleRoot === 'string' ? rawVipMerkleRoot : "0x0";
+  const regularMerkleRoot: string = typeof rawRegularMerkleRoot === 'string' ? rawRegularMerkleRoot : "0x0";
 
   // Fetch user balance
   const { data: userBalance } = useBalance({
@@ -134,61 +136,7 @@ export default function Home() {
     query: { enabled: !!address },
   });
 
-  // Fetch Merkle proofs
-  useEffect(() => {
-    async function fetchMerkleProofs() {
-      if (!address) return;
-      setIsFetchingProofs(true);
-      try {
-        const querySnapshot = await getDocs(collection(db, "whitelists"));
-        const gtdAddresses: string[] = [];
-        const fcfsAddresses: string[] = [];
-        let gtdMerkleRoot = "";
-        let fcfsMerkleRoot = "";
-        
-        // Collect addresses from batched documents
-        for (const doc of querySnapshot.docs) {
-          if (doc.id.startsWith("gtd_addresses_batch_")) {
-            const data = doc.data();
-            gtdAddresses.push(...(data.addresses || []));
-            gtdMerkleRoot = data.merkleRoot || gtdMerkleRoot;
-          } else if (doc.id.startsWith("fcfs_addresses_batch_")) {
-            const data = doc.data();
-            fcfsAddresses.push(...(data.addresses || []));
-            fcfsMerkleRoot = data.merkleRoot || fcfsMerkleRoot;
-          }
-        }
-
-        // Generate proofs for GTD (VIP)
-        let gtdProofs: string[] = [];
-        if (gtdAddresses.includes(address.toLowerCase())) {
-          const leaves = gtdAddresses.map((addr) => keccak256(addr.toLowerCase()));
-          const tree = new MerkleTree(leaves, keccak256, { sortPairs: true });
-          gtdProofs = tree.getHexProof(keccak256(address.toLowerCase()));
-        }
-
-        // Generate proofs for FCFS (Regular)
-        let fcfsProofs: string[] = [];
-        if (fcfsAddresses.includes(address.toLowerCase())) {
-          const leaves = fcfsAddresses.map((addr) => keccak256(addr.toLowerCase()));
-          const tree = new MerkleTree(leaves, keccak256, { sortPairs: true });
-          fcfsProofs = tree.getHexProof(keccak256(address.toLowerCase()));
-        }
-
-        setVipMerkleProof(gtdProofs);
-        setRegularMerkleProof(fcfsProofs);
-      } catch (error: unknown) {
-        console.error("Error fetching Merkle proofs:", error);
-        toast.error("Failed to fetch whitelist status", { position: "top-right", theme: "dark" });
-      } finally {
-        setIsFetchingProofs(false);
-      }
-    }
-    fetchMerkleProofs();
-  }, [address]);
-
-  // Optional: Cloud Function for proof generation (uncomment to use)
-  /*
+  // Fetch Merkle proofs using Cloud Function
   useEffect(() => {
     async function fetchMerkleProofs() {
       if (!address) return;
@@ -198,10 +146,33 @@ export default function Home() {
         const getMerkleProof = httpsCallable(functions, "getMerkleProof");
         const gtdResult = await getMerkleProof({ address, type: "gtd" });
         const fcfsResult = await getMerkleProof({ address, type: "fcfs" });
-        const gtdProofs = (gtdResult.data as { proof: string[] }).proof || [];
-        const fcfsProofs = (fcfsResult.data as { proof: string[] }).proof || [];
+        const gtdData = gtdResult.data as { proof: string[], merkleRoot: string };
+        const fcfsData = fcfsResult.data as { proof: string[], merkleRoot: string };
+        const gtdProofs = gtdData.proof || [];
+        const fcfsProofs = fcfsData.proof || [];
+
+        console.log("Connected Address:", address);
+        console.log("GTD Merkle Root (Firestore):", gtdData.merkleRoot);
+        console.log("FCFS Merkle Root (Firestore):", fcfsData.merkleRoot);
+        console.log("GTD Proof:", gtdProofs);
+        console.log("FCFS Proof:", fcfsProofs);
+        console.log("On-Chain VIP Merkle Root:", vipMerkleRoot);
+        console.log("On-Chain Regular Merkle Root:", regularMerkleRoot);
+        console.log("VIP Whitelist Minted:", Number(vipWhitelistMinted));
+        console.log("Regular Whitelist Minted:", Number(regularWhitelistMinted));
+
         setVipMerkleProof(gtdProofs);
         setRegularMerkleProof(fcfsProofs);
+
+        // Verify Merkle root match
+        if (gtdData.merkleRoot && gtdData.merkleRoot !== vipMerkleRoot) {
+          console.warn("GTD Merkle Root mismatch! Firestore:", gtdData.merkleRoot, "On-Chain:", vipMerkleRoot);
+          toast.warn("GTD whitelist data may be outdated. Contact support.", { position: "top-right", theme: "dark" });
+        }
+        if (fcfsData.merkleRoot && fcfsData.merkleRoot !== regularMerkleRoot) {
+          console.warn("FCFS Merkle Root mismatch! Firestore:", fcfsData.merkleRoot, "On-Chain:", regularMerkleRoot);
+          toast.warn("FCFS whitelist data may be outdated. Contact support.", { position: "top-right", theme: "dark" });
+        }
       } catch (error: unknown) {
         console.error("Error fetching Merkle proofs:", error);
         toast.error("Failed to fetch whitelist status", { position: "top-right", theme: "dark" });
@@ -210,8 +181,7 @@ export default function Home() {
       }
     }
     fetchMerkleProofs();
-  }, [address]);
-  */
+  }, [address, vipWhitelistMinted, regularWhitelistMinted, vipMerkleRoot, regularMerkleRoot]);
 
   // Determine phase eligibility
   const isVipEligible: boolean = vipMerkleProof.length > 0 && Number(vipWhitelistMinted) === 0;
@@ -283,9 +253,7 @@ export default function Home() {
     to: contractAddress as `0x${string}`,
     data: mintData,
     value: mintPrice ? BigInt(mintPrice.toString()) * BigInt(numTokens) : undefined,
-    query: {
-      enabled: isGasEstimationEnabled,
-    },
+    query: { enabled: isGasEstimationEnabled },
   });
 
   // Handle gas estimation errors
@@ -298,7 +266,7 @@ export default function Home() {
     }
   }, [gasError]);
 
-  // Prompt network switch on wrong network
+  // Prompt network switch
   useEffect(() => {
     if (isConnected && chain?.id !== monadTestnet.id) {
       toast.info("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
@@ -311,7 +279,7 @@ export default function Home() {
     }
   }, [isConnected, chain, switchChain]);
 
-  // Log wallet connection to Firebase
+  // Log wallet connection
   useEffect(() => {
     if (isConnected && address) {
       addDoc(collection(db, "walletConnections"), {
@@ -323,7 +291,7 @@ export default function Home() {
     }
   }, [isConnected, address]);
 
-  // Log wallet disconnection to Firebase
+  // Handle disconnect
   const handleDisconnect = async () => {
     try {
       disconnect();
@@ -341,7 +309,7 @@ export default function Home() {
     }
   };
 
-  // Handle increase/decrease buttons
+  // Handle increase/decrease
   const handleIncrease = () => {
     if (numberOfTokens < 10 && !isVipEligible && !isRegularEligible) {
       setNumberOfTokens(numberOfTokens + 1);
@@ -392,7 +360,7 @@ export default function Home() {
     return <span className="text-xs text-cyan-300 pl-10">{timeLeft}</span>;
   }
 
-  // Error handling
+  // Handle mint errors
   const handleMintError = async (error: unknown, mintPrice: bigint, numberOfTokens: number) => {
     const errorMap: Record<string, string> = {
       "insufficient funds": "Insufficient MONAD balance. Get testnet tokens from the Monad faucet.",
@@ -540,7 +508,7 @@ export default function Home() {
     (isRegularPhaseActive && isRegularWhitelistMintActive && isRegularEligible) ||
     (isPublicPhaseActive && isPublicMintActive && isPublicEligible)
   );
-  const isMintButtonDisabled: boolean = isPending || isPaused || !isEligible;
+  const isMintButtonDisabled: boolean = isPending || isPaused || !isEligible || isFetchingProofs;
 
   // Handle loading state
   if (isLoading || isFetchingProofs) {
@@ -561,7 +529,6 @@ export default function Home() {
     <main className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-cyan-300 font-poppins p-4 sm:p-6 md:p-8">
       <ToastContainer theme="dark" position="top-right" aria-live="polite" />
       <div className="container mx-auto max-w-7xl">
-        {/* Header and Wallet Status */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-6">
           <header className="flex flex-col justify-center items-center text-center">
             <div className="flex items-center justify-center space-x-4">
@@ -623,7 +590,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Title Section */}
         <section className="mb-8 flex flex-col items-center justify-center text-center">
           <h2 className="text-xl md:text-2xl font-semibold text-cyan-200">
             Mint & Flex Your Early Degen Status
@@ -631,9 +597,7 @@ export default function Home() {
           <p className="text-sm text-yellow-200 mt-2">Current Phase: {currentPhase}</p>
         </section>
 
-        {/* Main Content */}
         <div className="flex flex-col md:grid md:grid-cols-3 gap-6">
-          {/* Left Section: NFT Image */}
           <section className="order-1 flex justify-center items-center md:items-start animate-slide-in-left">
             <div className="relative group max-w-md w-full">
               <Image
@@ -655,7 +619,6 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Center Section: Mint Phases */}
           <section className="order-2 flex flex-col gap-6 items-center animate-slide-in-up">
             <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
               <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Phases</h3>
@@ -663,7 +626,6 @@ export default function Home() {
                 <p className="text-center text-red-400">Error loading contract data. Please try again later.</p>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {/* Active & Purring */}
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg ${
                       isPaused ? "bg-red-800" : "bg-green-800"
@@ -679,7 +641,6 @@ export default function Home() {
                       {isPaused ? "Paused" : "Active"}
                     </span>
                   </div>
-                  {/* VIP Whitelist */}
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg ${
                       isVipEligible ? "bg-gradient-to-r from-purple-600 to-cyan-600" : Number(vipWhitelistMinted) > 0 ? "bg-green-600" : "bg-gray-800"
@@ -705,7 +666,6 @@ export default function Home() {
                     endTime={Number(vipWhitelistEndTime)}
                     phase="GTD"
                   />
-                  {/* Regular Whitelist */}
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg ${
                       isRegularEligible ? "bg-gradient-to-r from-purple-600 to-cyan-600" : Number(regularWhitelistMinted) > 0 ? "bg-green-600" : "bg-gray-800"
@@ -731,7 +691,6 @@ export default function Home() {
                     endTime={Number(regularWhitelistEndTime)}
                     phase="FCFS"
                   />
-                  {/* Public Mint */}
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg ${
                       isPublicEligible && isPublicPhaseActive && isPublicMintActive ? "bg-gradient-to-r from-purple-600 to-cyan-600" : isPublicEligible ? "bg-purple-800" : "bg-gray-800"
@@ -758,7 +717,6 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Right Section: Mint Your NFT & Mint Progress */}
           <section className="order-3 flex flex-col gap-6 items-center animate-slide-in-right">
             {isConnected && (
               <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
@@ -871,7 +829,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Mint Progress */}
             <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
               <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Progress</h3>
               {contractError ? (
@@ -906,7 +863,6 @@ export default function Home() {
           </section>
         </div>
 
-        {/* Footer */}
         <footer className="mt-8 text-center text-cyan-300">
           <p className="text-sm">
             Join our community:{" "}
