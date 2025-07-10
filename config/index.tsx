@@ -4,7 +4,7 @@ import { monadTestnet } from "@reown/appkit/networks";
 
 // Get projectId from environment
 export const projectId = process.env.NEXT_PUBLIC_PROJECT_ID;
-export const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x66ce4b4b5B2fC939b56a8F4644Fe31e7FfdbcbF9" as `0x${string}`; // Replace with Remix-deployed address
+export const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x632e76836dEb09c03Ec1804ebF8F40D114484b93" as `0x${string}`; // Replace with Remix-deployed address
 
 if (!projectId) throw new Error("Project ID is not defined");
 
