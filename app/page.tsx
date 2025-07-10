@@ -3,8 +3,6 @@ import { useAccount, useWriteContract, useReadContracts, useSwitchChain, useEsti
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import CatcentNFTABI from "./CatcentNFT.json";
-import { db } from "@/firebase";
-import { collection, addDoc, getDocs } from "firebase/firestore";
 import { monadTestnet } from "@reown/appkit/networks";
 import { contractAddress } from "@/config";
 import { ToastContainer, toast } from "react-toastify";
@@ -14,10 +12,9 @@ import { modal } from "@/context";
 import { FaLock, FaUnlock } from "react-icons/fa";
 import { MerkleTree } from "merkletreejs";
 import keccak256 from "keccak256";
-// Uncomment for Cloud Function
-// import { getFunctions, httpsCallable } from "firebase/functions";
+import wallets from "./wallets.json"; // Import wallets.json with vipAddresses and regularAddresses
 
-// Explicitly type the ABI
+// Explicitly type the ABI for type safety
 const typedCatcentNFTABI = CatcentNFTABI as Abi;
 
 export default function Home() {
@@ -33,7 +30,7 @@ export default function Home() {
   const [currentPhase, setCurrentPhase] = useState<string>("");
   const [imageError, setImageError] = useState(false);
 
-  // Define contract calls
+  // Contract calls to read state
   const contractCalls = [
     { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "isPublicMintActive" },
     { address: contractAddress as `0x${string}`, abi: typedCatcentNFTABI, functionName: "isVipWhitelistMintActive" },
@@ -58,7 +55,7 @@ export default function Home() {
     query: { staleTime: 30_000, retry: 3, retryDelay: 1000, enabled: true },
   });
 
-  // Log contract errors
+  // Handle contract errors
   useEffect(() => {
     if (contractError) {
       console.error("Contract error:", contractError);
@@ -66,7 +63,7 @@ export default function Home() {
     }
   }, [contractError]);
 
-  // Extract contract data with explicit fallbacks
+  // Extract contract data with fallbacks
   const [
     rawPublicMintActive,
     rawVipWhitelistMintActive,
@@ -86,7 +83,7 @@ export default function Home() {
     rawPublicMintEndTime,
   ] = (contractData || []).map((result) => result.result ?? undefined);
 
-  // Explicitly type and provide fallbacks with type guards
+  // Type-safe contract state with default values (aligned with July 10, 2025)
   const isPublicMintActive: boolean = Boolean(rawPublicMintActive);
   const isVipWhitelistMintActive: boolean = Boolean(rawVipWhitelistMintActive);
   const isRegularWhitelistMintActive: boolean = Boolean(rawRegularWhitelistMintActive);
@@ -111,19 +108,19 @@ export default function Home() {
     : BigInt(0);
   const vipWhitelistStartTime: bigint = typeof rawVipWhitelistStartTime === 'string' || typeof rawVipWhitelistStartTime === 'number' || typeof rawVipWhitelistStartTime === 'bigint'
     ? BigInt(rawVipWhitelistStartTime)
-    : BigInt(1752112800); // 14:00 UTC, July 10, 2025
+    : BigInt(1752112800); // July 10, 2025, 14:00 UTC
   const vipWhitelistEndTime: bigint = typeof rawVipWhitelistEndTime === 'string' || typeof rawVipWhitelistEndTime === 'number' || typeof rawVipWhitelistEndTime === 'bigint'
     ? BigInt(rawVipWhitelistEndTime)
-    : BigInt(1752120000); // 16:00 UTC
+    : BigInt(1752120000); // July 10, 2025, 16:00 UTC
   const regularWhitelistStartTime: bigint = typeof rawRegularWhitelistStartTime === 'string' || typeof rawRegularWhitelistStartTime === 'number' || typeof rawRegularWhitelistStartTime === 'bigint'
     ? BigInt(rawRegularWhitelistStartTime)
-    : BigInt(1752120000); // 16:00 UTC
+    : BigInt(1752120000); // July 10, 2025, 16:00 UTC
   const regularWhitelistEndTime: bigint = typeof rawRegularWhitelistEndTime === 'string' || typeof rawRegularWhitelistEndTime === 'number' || typeof rawRegularWhitelistEndTime === 'bigint'
     ? BigInt(rawRegularWhitelistEndTime)
-    : BigInt(1752127200); // 18:00 UTC
+    : BigInt(1752127200); // July 10, 2025, 18:00 UTC
   const publicMintStartTime: bigint = typeof rawPublicMintStartTime === 'string' || typeof rawPublicMintStartTime === 'number' || typeof rawPublicMintStartTime === 'bigint'
     ? BigInt(rawPublicMintStartTime)
-    : BigInt(1752127200); // 18:00 UTC
+    : BigInt(1752127200); // July 10, 2025, 18:00 UTC
   const publicMintEndTime: bigint = typeof rawPublicMintEndTime === 'string' || typeof rawPublicMintEndTime === 'number' || typeof rawPublicMintEndTime === 'bigint'
     ? BigInt(rawPublicMintEndTime)
     : BigInt(1752300000); // July 31, 2025, 23:59 UTC
@@ -134,51 +131,37 @@ export default function Home() {
     query: { enabled: !!address },
   });
 
-  // Fetch Merkle proofs
+  // Generate Merkle proofs from wallets.json (optimized for large lists)
   useEffect(() => {
     async function fetchMerkleProofs() {
       if (!address) return;
       setIsFetchingProofs(true);
       try {
-        const querySnapshot = await getDocs(collection(db, "whitelists"));
-        const gtdAddresses: string[] = [];
-        const fcfsAddresses: string[] = [];
-        let gtdMerkleRoot = "";
-        let fcfsMerkleRoot = "";
-        
-        // Collect addresses from batched documents
-        for (const doc of querySnapshot.docs) {
-          if (doc.id.startsWith("gtd_addresses_batch_")) {
-            const data = doc.data();
-            gtdAddresses.push(...(data.addresses || []));
-            gtdMerkleRoot = data.merkleRoot || gtdMerkleRoot;
-          } else if (doc.id.startsWith("fcfs_addresses_batch_")) {
-            const data = doc.data();
-            fcfsAddresses.push(...(data.addresses || []));
-            fcfsMerkleRoot = data.merkleRoot || fcfsMerkleRoot;
-          }
-        }
+        // Normalize addresses to lowercase for consistency
+        const gtdAddresses: string[] = wallets.vipAddresses.map((addr: string) => addr.toLowerCase());
+        const fcfsAddresses: string[] = wallets.regularAddresses.map((addr: string) => addr.toLowerCase());
+        const lowerAddress = address.toLowerCase();
 
         // Generate proofs for GTD (VIP)
         let gtdProofs: string[] = [];
-        if (gtdAddresses.includes(address.toLowerCase())) {
-          const leaves = gtdAddresses.map((addr) => keccak256(addr.toLowerCase()));
+        if (gtdAddresses.includes(lowerAddress)) {
+          const leaves = gtdAddresses.map((addr) => keccak256(addr));
           const tree = new MerkleTree(leaves, keccak256, { sortPairs: true });
-          gtdProofs = tree.getHexProof(keccak256(address.toLowerCase()));
+          gtdProofs = tree.getHexProof(keccak256(lowerAddress));
         }
 
         // Generate proofs for FCFS (Regular)
         let fcfsProofs: string[] = [];
-        if (fcfsAddresses.includes(address.toLowerCase())) {
-          const leaves = fcfsAddresses.map((addr) => keccak256(addr.toLowerCase()));
+        if (fcfsAddresses.includes(lowerAddress)) {
+          const leaves = fcfsAddresses.map((addr) => keccak256(addr));
           const tree = new MerkleTree(leaves, keccak256, { sortPairs: true });
-          fcfsProofs = tree.getHexProof(keccak256(address.toLowerCase()));
+          fcfsProofs = tree.getHexProof(keccak256(lowerAddress));
         }
 
         setVipMerkleProof(gtdProofs);
         setRegularMerkleProof(fcfsProofs);
       } catch (error: unknown) {
-        console.error("Error fetching Merkle proofs:", error);
+        console.error("Error generating Merkle proofs:", error);
         toast.error("Failed to fetch whitelist status", { position: "top-right", theme: "dark" });
       } finally {
         setIsFetchingProofs(false);
@@ -186,32 +169,6 @@ export default function Home() {
     }
     fetchMerkleProofs();
   }, [address]);
-
-  // Optional: Cloud Function for proof generation (uncomment to use)
-  /*
-  useEffect(() => {
-    async function fetchMerkleProofs() {
-      if (!address) return;
-      setIsFetchingProofs(true);
-      try {
-        const functions = getFunctions();
-        const getMerkleProof = httpsCallable(functions, "getMerkleProof");
-        const gtdResult = await getMerkleProof({ address, type: "gtd" });
-        const fcfsResult = await getMerkleProof({ address, type: "fcfs" });
-        const gtdProofs = (gtdResult.data as { proof: string[] }).proof || [];
-        const fcfsProofs = (fcfsResult.data as { proof: string[] }).proof || [];
-        setVipMerkleProof(gtdProofs);
-        setRegularMerkleProof(fcfsProofs);
-      } catch (error: unknown) {
-        console.error("Error fetching Merkle proofs:", error);
-        toast.error("Failed to fetch whitelist status", { position: "top-right", theme: "dark" });
-      } finally {
-        setIsFetchingProofs(false);
-      }
-    }
-    fetchMerkleProofs();
-  }, [address]);
-  */
 
   // Determine phase eligibility
   const isVipEligible: boolean = vipMerkleProof.length > 0 && Number(vipWhitelistMinted) === 0;
@@ -221,16 +178,22 @@ export default function Home() {
   // Determine phase status
   const now = Math.floor(Date.now() / 1000);
   const isVipPhaseActive: boolean = Boolean(
-    vipWhitelistStartTime && vipWhitelistEndTime &&
-    Number(vipWhitelistStartTime) <= now && now < Number(vipWhitelistEndTime)
+    vipWhitelistStartTime &&
+    vipWhitelistEndTime &&
+    Number(vipWhitelistStartTime) <= now &&
+    now < Number(vipWhitelistEndTime)
   );
   const isRegularPhaseActive: boolean = Boolean(
-    regularWhitelistStartTime && regularWhitelistEndTime &&
-    Number(regularWhitelistStartTime) <= now && now < Number(regularWhitelistEndTime)
+    regularWhitelistStartTime &&
+    regularWhitelistEndTime &&
+    Number(regularWhitelistStartTime) <= now &&
+    now < Number(regularWhitelistEndTime)
   );
   const isPublicPhaseActive: boolean = Boolean(
-    publicMintStartTime && publicMintEndTime &&
-    Number(publicMintStartTime) <= now && (now < Number(publicMintEndTime) || Number(totalSupply) < Number(maxSupply))
+    publicMintStartTime &&
+    publicMintEndTime &&
+    Number(publicMintStartTime) <= now &&
+    (now < Number(publicMintEndTime) || Number(totalSupply) < Number(maxSupply))
   );
 
   // Set current phase
@@ -253,7 +216,7 @@ export default function Home() {
     isPublicMintActive,
   ]);
 
-  // Estimate gas
+  // Estimate gas for minting
   const numTokens = numberOfTokens || 1;
   const merkleProof = isVipPhaseActive && isVipWhitelistMintActive
     ? vipMerkleProof
@@ -262,30 +225,29 @@ export default function Home() {
         ? vipMerkleProof
         : regularMerkleProof
       : [];
-  const mintData = mintPrice && numTokens >= 1 && numTokens <= 10 && isConnected
-    ? encodeFunctionData({
-        abi: typedCatcentNFTABI,
-        functionName: "mint",
-        args: [numTokens, merkleProof],
-      })
-    : undefined;
+  const mintData =
+    mintPrice && numTokens >= 1 && numTokens <= 10 && isConnected
+      ? encodeFunctionData({
+          abi: typedCatcentNFTABI,
+          functionName: "mint",
+          args: [numTokens, merkleProof],
+        })
+      : undefined;
   const isGasEstimationEnabled: boolean = Boolean(
     mintPrice !== undefined &&
     numTokens >= 1 &&
     numTokens <= 10 &&
     isConnected &&
     ((isVipPhaseActive && isVipWhitelistMintActive && isVipEligible) ||
-     (isRegularPhaseActive && isRegularWhitelistMintActive && isRegularEligible) ||
-     (isPublicPhaseActive && isPublicMintActive))
+      (isRegularPhaseActive && isRegularWhitelistMintActive && isRegularEligible) ||
+      (isPublicPhaseActive && isPublicMintActive))
   );
 
   const { data: gasEstimate, error: gasError } = useEstimateGas({
     to: contractAddress as `0x${string}`,
     data: mintData,
     value: mintPrice ? BigInt(mintPrice.toString()) * BigInt(numTokens) : undefined,
-    query: {
-      enabled: isGasEstimationEnabled,
-    },
+    query: { enabled: isGasEstimationEnabled },
   });
 
   // Handle gas estimation errors
@@ -298,7 +260,7 @@ export default function Home() {
     }
   }, [gasError]);
 
-  // Prompt network switch on wrong network
+  // Prompt network switch if on wrong network
   useEffect(() => {
     if (isConnected && chain?.id !== monadTestnet.id) {
       toast.info("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
@@ -311,29 +273,17 @@ export default function Home() {
     }
   }, [isConnected, chain, switchChain]);
 
-  // Log wallet connection to Firebase
+  // Notify on wallet connection (Firebase logging removed, can be re-added if needed)
   useEffect(() => {
     if (isConnected && address) {
-      addDoc(collection(db, "walletConnections"), {
-        walletAddress: address,
-        timestamp: Date.now(),
-        event: "wallet_connected",
-      }).catch((err) => console.error("Error logging wallet connection:", err));
       toast.success("Wallet connected successfully!", { position: "top-right", theme: "dark" });
     }
   }, [isConnected, address]);
 
-  // Log wallet disconnection to Firebase
+  // Handle wallet disconnection
   const handleDisconnect = async () => {
     try {
       disconnect();
-      if (address) {
-        await addDoc(collection(db, "walletConnections"), {
-          walletAddress: address,
-          timestamp: Date.now(),
-          event: "wallet_disconnected",
-        });
-      }
       toast.info("Wallet disconnected.", { position: "top-right", theme: "dark" });
     } catch (error: unknown) {
       console.error("Disconnect Error:", error);
@@ -341,7 +291,7 @@ export default function Home() {
     }
   };
 
-  // Handle increase/decrease buttons
+  // Handle token quantity increase/decrease
   const handleIncrease = () => {
     if (numberOfTokens < 10 && !isVipEligible && !isRegularEligible) {
       setNumberOfTokens(numberOfTokens + 1);
@@ -392,7 +342,7 @@ export default function Home() {
     return <span className="text-xs text-cyan-300 pl-10">{timeLeft}</span>;
   }
 
-  // Error handling
+  // Handle minting errors
   const handleMintError = async (error: unknown, mintPrice: bigint, numberOfTokens: number) => {
     const errorMap: Record<string, string> = {
       "insufficient funds": "Insufficient MONAD balance. Get testnet tokens from the Monad faucet.",
@@ -417,16 +367,10 @@ export default function Home() {
         errorMessage = errorMap[foundKey];
       }
     }
-
     toast.error(errorMessage, { position: "top-right", theme: "dark", autoClose: 5000 });
-    await addDoc(collection(db, "errors"), {
-      walletAddress: address || "0x0",
-      error: error instanceof Error ? error.message : "Unknown error",
-      timestamp: Date.now(),
-      event: "minting_error",
-    });
   };
 
+  // Handle minting
   const handleMint = async () => {
     if (isPaused) {
       toast.error("Minting is paused.", { position: "top-right", theme: "dark" });
@@ -498,13 +442,6 @@ export default function Home() {
         value: totalCost,
       });
 
-      await addDoc(collection(db, "mintingEvents"), {
-        walletAddress: address,
-        numberOfTokens,
-        timestamp: Date.now(),
-        event: "mint",
-      });
-
       const { default: JSConfetti } = await import("js-confetti");
       const confetti = new JSConfetti();
       await confetti.addConfetti({
@@ -566,16 +503,15 @@ export default function Home() {
           <header className="flex flex-col justify-center items-center text-center">
             <div className="flex items-center justify-center space-x-4">
               <Image
-                src="/logo.jpg"
+                src={imageError ? "/images/placeholder.png" : "/logo.jpg"}
                 alt="Catcent Logo"
                 width={120}
                 height={120}
                 className="rounded-full border-4 border-purple-600"
                 unoptimized
-                onError={(e) => {
+                onError={() => {
                   console.error("Logo image load failed");
-                  e.currentTarget.src = "/images/placeholder.png";
-                  e.currentTarget.onerror = null;
+                  setImageError(true);
                 }}
               />
               <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500 drop-shadow-lg">
@@ -644,11 +580,9 @@ export default function Home() {
                 className="w-full rounded-2xl shadow-2xl border-4 border-gradient-to-r from-purple-600 to-cyan-500 group-hover:scale-105 transition-transform duration-300"
                 priority
                 unoptimized
-                onError={(e) => {
+                onError={() => {
                   console.error("NFT image load failed");
                   setImageError(true);
-                  e.currentTarget.src = "/images/placeholder.png";
-                  e.currentTarget.onerror = null;
                 }}
               />
               <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-500 opacity-0 group-hover:opacity-20 rounded-2xl transition-opacity duration-300" />
@@ -682,16 +616,37 @@ export default function Home() {
                   {/* VIP Whitelist */}
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg ${
-                      isVipEligible ? "bg-gradient-to-r from-purple-600 to-cyan-600" : Number(vipWhitelistMinted) > 0 ? "bg-green-600" : "bg-gray-800"
+                      isVipEligible
+                        ? "bg-gradient-to-r from-purple-600 to-cyan-600"
+                        : Number(vipWhitelistMinted) > 0
+                        ? "bg-green-600"
+                        : "bg-gray-800"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-label={isVipEligible ? "VIP Whitelist Unlocked" : Number(vipWhitelistMinted) > 0 ? "VIP Whitelist Minted" : "VIP Whitelist Locked"}>
+                      <span
+                        className="text-xl"
+                        aria-label={
+                          isVipEligible
+                            ? "VIP Whitelist Unlocked"
+                            : Number(vipWhitelistMinted) > 0
+                            ? "VIP Whitelist Minted"
+                            : "VIP Whitelist Locked"
+                        }
+                      >
                         {isVipEligible || Number(vipWhitelistMinted) > 0 ? <FaUnlock /> : <FaLock />}
                       </span>
                       <span className="text-lg font-bold text-cyan-200">GTD (Early)</span>
                     </div>
-                    <span className={`text-sm font-semibold ${isVipEligible ? "text-green-400" : Number(vipWhitelistMinted) > 0 ? "text-green-400" : "text-red-400"}`}>
+                    <span
+                      className={`text-sm font-semibold ${
+                        isVipEligible
+                          ? "text-green-400"
+                          : Number(vipWhitelistMinted) > 0
+                          ? "text-green-400"
+                          : "text-red-400"
+                      }`}
+                    >
                       {Number(vipWhitelistMinted) > 0 ? "Minted" : isVipEligible ? "Eligible" : "Not Eligible"}
                     </span>
                   </div>
@@ -708,22 +663,45 @@ export default function Home() {
                   {/* Regular Whitelist */}
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg ${
-                      isRegularEligible ? "bg-gradient-to-r from-purple-600 to-cyan-600" : Number(regularWhitelistMinted) > 0 ? "bg-green-600" : "bg-gray-800"
+                      isRegularEligible
+                        ? "bg-gradient-to-r from-purple-600 to-cyan-600"
+                        : Number(regularWhitelistMinted) > 0
+                        ? "bg-green-600"
+                        : "bg-gray-800"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-label={isRegularEligible ? "Regular Whitelist Unlocked" : Number(regularWhitelistMinted) > 0 ? "Regular Whitelist Minted" : "Regular Whitelist Locked"}>
+                      <span
+                        className="text-xl"
+                        aria-label={
+                          isRegularEligible
+                            ? "Regular Whitelist Unlocked"
+                            : Number(regularWhitelistMinted) > 0
+                            ? "Regular Whitelist Minted"
+                            : "Regular Whitelist Locked"
+                        }
+                      >
                         {isRegularEligible || Number(regularWhitelistMinted) > 0 ? <FaUnlock /> : <FaLock />}
                       </span>
                       <span className="text-lg font-bold text-cyan-200">FCFS</span>
                     </div>
-                    <span className={`text-sm font-semibold ${isRegularEligible ? "text-green-400" : Number(regularWhitelistMinted) > 0 ? "text-green-400" : "text-red-400"}`}>
+                    <span
+                      className={`text-sm font-semibold ${
+                        isRegularEligible
+                          ? "text-green-400"
+                          : Number(regularWhitelistMinted) > 0
+                          ? "text-green-400"
+                          : "text-red-400"
+                      }`}
+                    >
                       {Number(regularWhitelistMinted) > 0 ? "Minted" : isRegularEligible ? "Eligible" : "Not Eligible"}
                     </span>
                   </div>
                   {isConnected && (
                     <p className="text-xs text-cyan-300 pl-10">
-                      Limit: {(regularMerkleProof.length > 0 || vipMerkleProof.length > 0) ? `${Number(regularWhitelistMinted)}/1` : "Not Whitelisted"}
+                      Limit: {regularMerkleProof.length > 0 || vipMerkleProof.length > 0
+                        ? `${Number(regularWhitelistMinted)}/1`
+                        : "Not Whitelisted"}
                     </p>
                   )}
                   <CountdownTimer
@@ -734,17 +712,36 @@ export default function Home() {
                   {/* Public Mint */}
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg ${
-                      isPublicEligible && isPublicPhaseActive && isPublicMintActive ? "bg-gradient-to-r from-purple-600 to-cyan-600" : isPublicEligible ? "bg-purple-800" : "bg-gray-800"
+                      isPublicEligible && isPublicPhaseActive && isPublicMintActive
+                        ? "bg-gradient-to-r from-purple-600 to-cyan-600"
+                        : isPublicEligible
+                        ? "bg-purple-800"
+                        : "bg-gray-800"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-label={isPublicEligible ? "Public Mint Eligible" : "Public Mint Locked"}>
+                      <span
+                        className="text-xl"
+                        aria-label={isPublicEligible ? "Public Mint Eligible" : "Public Mint Locked"}
+                      >
                         {isPublicEligible ? <FaUnlock /> : <FaLock />}
                       </span>
                       <span className="text-lg font-bold text-cyan-200">Public</span>
                     </div>
-                    <span className={`text-sm font-semibold ${isPublicEligible && isPublicPhaseActive && isPublicMintActive ? "text-green-400" : isPublicEligible ? "text-yellow-400" : "text-red-400"}`}>
-                      {isPublicEligible && isPublicPhaseActive && isPublicMintActive ? "Live" : isPublicEligible ? "Eligible" : "Not Eligible"}
+                    <span
+                      className={`text-sm font-semibold ${
+                        isPublicEligible && isPublicPhaseActive && isPublicMintActive
+                          ? "text-green-400"
+                          : isPublicEligible
+                          ? "text-yellow-400"
+                          : "text-red-400"
+                      }`}
+                    >
+                      {isPublicEligible && isPublicPhaseActive && isPublicMintActive
+                        ? "Live"
+                        : isPublicEligible
+                        ? "Eligible"
+                        : "Not Eligible"}
                     </span>
                   </div>
                   {isConnected && <p className="text-xs text-cyan-300 pl-10">Limit: Up to 10 per transaction</p>}
@@ -768,14 +765,18 @@ export default function Home() {
                 ) : (
                   <div className="flex flex-col items-center gap-3">
                     <p className="text-sm text-cyan-300">
-                      Mint Price: <span className="font-semibold text-yellow-200">{(Number(mintPrice) / 1e18).toString()} MONAD</span>
+                      Mint Price:{" "}
+                      <span className="font-semibold text-yellow-200">{(Number(mintPrice) / 1e18).toString()} MONAD</span>
                     </p>
                     <p className="text-sm text-cyan-300">
                       Your NFTs: <span className="font-semibold text-yellow-200">{balance.toString()}</span>
                     </p>
                     {userBalance && (
                       <p className="text-sm text-cyan-300">
-                        Your Balance: <span className="font-semibold text-yellow-200">{(Number(userBalance.value) / 1e18).toFixed(4)} MONAD</span>
+                        Your Balance:{" "}
+                        <span className="font-semibold text-yellow-200">
+                          {(Number(userBalance.value) / 1e18).toFixed(4)} MONAD
+                        </span>
                       </p>
                     )}
                     {gasEstimate && (
@@ -801,7 +802,11 @@ export default function Home() {
                             value={numberOfTokens}
                             onChange={(e) => {
                               const value = parseInt(e.target.value);
-                              if (!isNaN(value) && value >= 1 && value <= (isVipEligible || isRegularEligible ? 1 : 10)) {
+                              if (
+                                !isNaN(value) &&
+                                value >= 1 &&
+                                value <= (isVipEligible || isRegularEligible ? 1 : 10)
+                              ) {
                                 setNumberOfTokens(value);
                                 setIsInputValid(true);
                               } else {
@@ -839,8 +844,19 @@ export default function Home() {
                           {isPending ? (
                             <>
                               <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                />
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                />
                               </svg>
                               Minting...
                             </>
@@ -879,7 +895,10 @@ export default function Home() {
               ) : (
                 <div className="flex flex-col items-center gap-3">
                   <p className="text-sm text-cyan-300">
-                    Minted: <span className="font-semibold text-yellow-200">{totalSupply.toString()} / {maxSupply.toString()}</span>
+                    Minted:{" "}
+                    <span className="font-semibold text-yellow-200">
+                      {totalSupply.toString()} / {maxSupply.toString()}
+                    </span>
                   </p>
                   <div
                     className="w-full max-w-xs bg-gray-800 rounded-full h-3 relative overflow-hidden"
@@ -910,11 +929,21 @@ export default function Home() {
         <footer className="mt-8 text-center text-cyan-300">
           <p className="text-sm">
             Join our community:{" "}
-            <a href="https://discord.com/invite/TXPbt7ztMC" target="_blank" rel="noopener noreferrer" className="text-yellow-200 underline">
+            <a
+              href="https://discord.com/invite/TXPbt7ztMC"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-yellow-200 underline"
+            >
               Discord
             </a>{" "}
             |{" "}
-            <a href="https://x.com/CatCentsio/" target="_blank" rel="noopener noreferrer" className="text-yellow-200 underline">
+            <a
+              href="https://x.com/CatCentsio/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-yellow-200 underline"
+            >
               X
             </a>
           </p>

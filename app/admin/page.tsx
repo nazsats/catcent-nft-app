@@ -1,81 +1,86 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useAccount, useWriteContract, useReadContract } from "wagmi";
+import { useAccount, useWriteContract, useReadContract, useSwitchChain } from "wagmi";
 import { contractAddress } from "@/config";
 import CatcentNFTABI from "../CatcentNFT.json";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { monadTestnet } from "@reown/appkit/networks";
-import { db } from "@/firebase";
-import { doc, setDoc } from "firebase/firestore";
 import { MerkleTree } from "merkletreejs";
 import keccak256 from "keccak256";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import wallets from "../wallets.json"; // Import wallets.json
+import { type Abi } from "viem";
 
+const typedCatcentNFTABI = CatcentNFTABI as Abi;
 
 export default function Admin() {
   const { isConnected, address, chain } = useAccount();
   const { writeContractAsync, isPending } = useWriteContract();
-  const [vipStartTime, setVipStartTime] = useState("1752045050"); // March 1, 2026, 00:00 UTC
-  const [vipEndTime, setVipEndTime] = useState("1752046250");     // March 1, 2026, 01:00 UTC
-  const [regularStartTime, setRegularStartTime] = useState("1752046250"); // March 1, 2026, 02:00 UTC
-  const [regularEndTime, setRegularEndTime] = useState("1752047450");     // March 1, 2026, 03:00 UTC
-  const [publicStartTime, setPublicStartTime] = useState("1752047450");   // March 1, 2026, 04:00 UTC
-  const [publicEndTime, setPublicEndTime] = useState("1752133850");       // March 31, 2026, 23:59 UTC
-  const [mintPrice, setMintPrice] = useState("0.01");
-  const [vipAddresses, setVipAddresses] = useState("");
-  const [regularAddresses, setRegularAddresses] = useState("");
+  const { switchChain } = useSwitchChain();
+  // Align timestamps with contract defaults (July 10, 2025)
+  const [vipStartTime, setVipStartTime] = useState("1752112800"); // July 10, 2025, 08:00 UTC
+  const [vipEndTime, setVipEndTime] = useState("1752120000"); // July 10, 2025, 08:20 UTC
+  const [regularStartTime, setRegularStartTime] = useState("1752120000"); // July 10, 2025, 08:20 UTC
+  const [regularEndTime, setRegularEndTime] = useState("1752127200"); // July 10, 2025, 08:30 UTC
+  const [publicStartTime, setPublicStartTime] = useState("1752127200"); // July 10, 2025, 08:30 UTC
+  const [publicEndTime, setPublicEndTime] = useState("1752300000"); // July 31, 2025, 23:59 UTC
+  const [mintPrice, setMintPrice] = useState("3.55"); // Matches contract default
+  const [vipAddresses, setVipAddresses] = useState(wallets.vipAddresses.join(",")); // From wallets.json
+  const [regularAddresses, setRegularAddresses] = useState(wallets.regularAddresses.join(",")); // From wallets.json
   const [isOwner, setIsOwner] = useState(false);
 
-
   // Check if connected wallet is owner
-  const { data: owner } = useReadContract({
+  const { data: owner, error: ownerError } = useReadContract({
     address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
+    abi: typedCatcentNFTABI,
     functionName: "owner",
-  }) as { data: `0x${string}` | undefined };
+  }) as { data: `0x${string}` | undefined; error: Error | null };
 
   useEffect(() => {
+    if (ownerError) {
+      console.error("Error fetching owner:", ownerError);
+      toast.error("Failed to verify owner status", { position: "top-right", theme: "dark" });
+    }
     if (isConnected && address && owner) {
       setIsOwner(address.toLowerCase() === owner.toLowerCase());
     } else {
       setIsOwner(false);
     }
-  }, [address, owner, isConnected]);
+  }, [address, owner, isConnected, ownerError]);
 
   // Read contract state
   const { data: isVipWhitelistMintActive } = useReadContract({
     address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
+    abi: typedCatcentNFTABI,
     functionName: "isVipWhitelistMintActive",
   });
   const { data: isRegularWhitelistMintActive } = useReadContract({
     address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
+    abi: typedCatcentNFTABI,
     functionName: "isRegularWhitelistMintActive",
   });
   const { data: isPublicMintActive } = useReadContract({
     address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
+    abi: typedCatcentNFTABI,
     functionName: "isPublicMintActive",
   });
   const { data: isPaused } = useReadContract({
     address: contractAddress as `0x${string}`,
-    abi: CatcentNFTABI,
+    abi: typedCatcentNFTABI,
     functionName: "isPaused",
   });
 
-  // Generate Merkle tree and proofs
-  const generateMerkleTree = (addresses: string[]) => {
-    const leaves = addresses.map((addr) => keccak256(addr.toLowerCase()));
+  // Generate Merkle root (optimized for large lists)
+  const generateMerkleRoot = (addresses: string[]): string => {
+    const validAddresses = addresses
+      .map((addr) => addr.trim().toLowerCase())
+      .filter((addr) => /^0x[a-fA-F0-9]{40}$/.test(addr));
+    if (validAddresses.length === 0) return "0x" + "0".repeat(64); // Empty root
+    const leaves = validAddresses.map((addr) => keccak256(addr));
     const tree = new MerkleTree(leaves, keccak256, { sortPairs: true });
-    const root = tree.getHexRoot();
-    const proofs: { [key: string]: string[] } = {};
-    addresses.forEach((addr) => {
-      proofs[addr.toLowerCase()] = tree.getHexProof(keccak256(addr.toLowerCase()));
-    });
-    return { root, proofs };
+    return tree.getHexRoot();
   };
 
   // Handle phase state updates
@@ -85,8 +90,13 @@ export default function Admin() {
       return;
     }
     if (chain?.id !== monadTestnet.id) {
-      toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
-      return;
+      try {
+        await switchChain({ chainId: monadTestnet.id });
+        toast.info("Switched to Monad Testnet", { position: "top-right", theme: "dark" });
+      } catch {
+        toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
+        return;
+      }
     }
     try {
       let functionName: string;
@@ -96,15 +106,33 @@ export default function Admin() {
       else if (state === "public") functionName = "setPublicMintActive";
       else return;
 
-      await writeContractAsync({
+      const tx = await writeContractAsync({
         address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
+        abi: typedCatcentNFTABI,
         functionName,
         args: [value],
       });
-      toast.success(`${state} state updated successfully!`, { position: "top-right", theme: "dark" });
+      toast.success(
+        <div role="alert" aria-live="assertive">
+          {state} state updated successfully!{" "}
+          <a
+            href={`https://testnet.monadexplorer.com/tx/${tx}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline text-cyan-300"
+          >
+            View on Explorer
+          </a>
+        </div>,
+        { position: "top-right", theme: "dark" }
+      );
     } catch (error: unknown) {
-      toast.error(`Failed to update ${state} state: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
+      console.error(`Error updating ${state} state:`, error);
+      const errorMessage =
+        error instanceof Error && error.message.includes("denied")
+          ? "Transaction rejected"
+          : `Failed to update ${state} state`;
+      toast.error(errorMessage, { position: "top-right", theme: "dark" });
     }
   };
 
@@ -115,32 +143,71 @@ export default function Admin() {
       return;
     }
     if (chain?.id !== monadTestnet.id) {
-      toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
-      return;
+      try {
+        await switchChain({ chainId: monadTestnet.id });
+        toast.info("Switched to Monad Testnet", { position: "top-right", theme: "dark" });
+      } catch {
+        toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
+        return;
+      }
     }
     const now = Math.floor(Date.now() / 1000);
     try {
-      await writeContractAsync({
+      const vipTx = await writeContractAsync({
         address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
+        abi: typedCatcentNFTABI,
         functionName: "setVipWhitelistMintActive",
         args: [now >= parseInt(vipStartTime) && now < parseInt(vipEndTime)],
       });
-      await writeContractAsync({
+      const regularTx = await writeContractAsync({
         address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
+        abi: typedCatcentNFTABI,
         functionName: "setRegularWhitelistMintActive",
         args: [now >= parseInt(regularStartTime) && now < parseInt(regularEndTime)],
       });
-      await writeContractAsync({
+      const publicTx = await writeContractAsync({
         address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
+        abi: typedCatcentNFTABI,
         functionName: "setPublicMintActive",
-        args: [now >= parseInt(publicStartTime)],
+        args: [now >= parseInt(publicStartTime) && now < parseInt(publicEndTime)],
       });
-      toast.success("Phase states synced successfully!", { position: "top-right", theme: "dark" });
+      toast.success(
+        <div role="alert" aria-live="assertive">
+          Phase states synced successfully!{" "}
+          <a
+            href={`https://testnet.monadexplorer.com/tx/${vipTx}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline text-cyan-300"
+          >
+            View VIP Tx
+          </a>{" "}
+          <a
+            href={`https://testnet.monadexplorer.com/tx/${regularTx}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline text-cyan-300"
+          >
+            View Regular Tx
+          </a>{" "}
+          <a
+            href={`https://testnet.monadexplorer.com/tx/${publicTx}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline text-cyan-300"
+          >
+            View Public Tx
+          </a>
+        </div>,
+        { position: "top-right", theme: "dark" }
+      );
     } catch (error: unknown) {
-      toast.error(`Failed to sync phase states: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
+      console.error("Error syncing phase states:", error);
+      const errorMessage =
+        error instanceof Error && error.message.includes("denied")
+          ? "Transaction rejected"
+          : "Failed to sync phase states";
+      toast.error(errorMessage, { position: "top-right", theme: "dark" });
     }
   };
 
@@ -151,8 +218,13 @@ export default function Admin() {
       return;
     }
     if (chain?.id !== monadTestnet.id) {
-      toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
-      return;
+      try {
+        await switchChain({ chainId: monadTestnet.id });
+        toast.info("Switched to Monad Testnet", { position: "top-right", theme: "dark" });
+      } catch {
+        toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
+        return;
+      }
     }
 
     // Validate timestamps
@@ -184,45 +256,68 @@ export default function Admin() {
     }
 
     try {
-      await writeContractAsync({
-        address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
-        functionName: "setVipWhitelistStartTime",
-        args: [vipStart],
-      });
-      await writeContractAsync({
-        address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
-        functionName: "setVipWhitelistEndTime",
-        args: [vipEnd],
-      });
-      await writeContractAsync({
-        address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
-        functionName: "setRegularWhitelistStartTime",
-        args: [regularStart],
-      });
-      await writeContractAsync({
-        address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
-        functionName: "setRegularWhitelistEndTime",
-        args: [regularEnd],
-      });
-      await writeContractAsync({
-        address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
-        functionName: "setPublicMintStartTime",
-        args: [publicStart],
-      });
-      await writeContractAsync({
-        address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
-        functionName: "setPublicMintEndTime",
-        args: [publicEnd],
-      });
-      toast.success("Phase times updated successfully!", { position: "top-right", theme: "dark" });
+      const txs = await Promise.all([
+        writeContractAsync({
+          address: contractAddress as `0x${string}`,
+          abi: typedCatcentNFTABI,
+          functionName: "setVipWhitelistStartTime",
+          args: [vipStart],
+        }),
+        writeContractAsync({
+          address: contractAddress as `0x${string}`,
+          abi: typedCatcentNFTABI,
+          functionName: "setVipWhitelistEndTime",
+          args: [vipEnd],
+        }),
+        writeContractAsync({
+          address: contractAddress as `0x${string}`,
+          abi: typedCatcentNFTABI,
+          functionName: "setRegularWhitelistStartTime",
+          args: [regularStart],
+        }),
+        writeContractAsync({
+          address: contractAddress as `0x${string}`,
+          abi: typedCatcentNFTABI,
+          functionName: "setRegularWhitelistEndTime",
+          args: [regularEnd],
+        }),
+        writeContractAsync({
+          address: contractAddress as `0x${string}`,
+          abi: typedCatcentNFTABI,
+          functionName: "setPublicMintStartTime",
+          args: [publicStart],
+        }),
+        writeContractAsync({
+          address: contractAddress as `0x${string}`,
+          abi: typedCatcentNFTABI,
+          functionName: "setPublicMintEndTime",
+          args: [publicEnd],
+        }),
+      ]);
+      toast.success(
+        <div role="alert" aria-live="assertive">
+          Phase times updated successfully!{" "}
+          {txs.map((tx, index) => (
+            <a
+              key={index}
+              href={`https://testnet.monadexplorer.com/tx/${tx}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline text-cyan-300"
+            >
+              View Tx {index + 1}
+            </a>
+          ))}
+        </div>,
+        { position: "top-right", theme: "dark" }
+      );
     } catch (error: unknown) {
-      toast.error(`Failed to update phase times: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
+      console.error("Error updating phase times:", error);
+      const errorMessage =
+        error instanceof Error && error.message.includes("denied")
+          ? "Transaction rejected"
+          : "Failed to update phase times";
+      toast.error(errorMessage, { position: "top-right", theme: "dark" });
     }
   };
 
@@ -233,23 +328,46 @@ export default function Admin() {
       return;
     }
     if (chain?.id !== monadTestnet.id) {
-      toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
-      return;
+      try {
+        await switchChain({ chainId: monadTestnet.id });
+        toast.info("Switched to Monad Testnet", { position: "top-right", theme: "dark" });
+      } catch {
+        toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
+        return;
+      }
     }
     if (parseFloat(mintPrice) <= 0) {
       toast.error("Mint price must be greater than 0.", { position: "top-right", theme: "dark" });
       return;
     }
     try {
-      await writeContractAsync({
+      const tx = await writeContractAsync({
         address: contractAddress as `0x${string}`,
-        abi: CatcentNFTABI,
+        abi: typedCatcentNFTABI,
         functionName: "setMintPrice",
         args: [BigInt(Math.round(parseFloat(mintPrice) * 1e18))],
       });
-      toast.success("Mint price updated successfully!", { position: "top-right", theme: "dark" });
+      toast.success(
+        <div role="alert" aria-live="assertive">
+          Mint price updated successfully!{" "}
+          <a
+            href={`https://testnet.monadexplorer.com/tx/${tx}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline text-cyan-300"
+          >
+            View on Explorer
+          </a>
+        </div>,
+        { position: "top-right", theme: "dark" }
+      );
     } catch (error: unknown) {
-      toast.error(`Failed to update mint price: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
+      console.error("Error updating mint price:", error);
+      const errorMessage =
+        error instanceof Error && error.message.includes("denied")
+          ? "Transaction rejected"
+          : "Failed to update mint price";
+      toast.error(errorMessage, { position: "top-right", theme: "dark" });
     }
   };
 
@@ -260,8 +378,13 @@ export default function Admin() {
       return;
     }
     if (chain?.id !== monadTestnet.id) {
-      toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
-      return;
+      try {
+        await switchChain({ chainId: monadTestnet.id });
+        toast.info("Switched to Monad Testnet", { position: "top-right", theme: "dark" });
+      } catch {
+        toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
+        return;
+      }
     }
     try {
       const vipAddrs = vipAddresses
@@ -278,37 +401,59 @@ export default function Admin() {
         return;
       }
 
-      const vipMerkle = vipAddrs.length > 0 ? generateMerkleTree(vipAddrs) : { root: "0x", proofs: {} };
-      const regularMerkle = regularAddrs.length > 0 ? generateMerkleTree(regularAddrs) : { root: "0x", proofs: {} };
+      const vipMerkleRoot = vipAddrs.length > 0 ? generateMerkleRoot(vipAddrs) : "0x" + "0".repeat(64);
+      const regularMerkleRoot = regularAddrs.length > 0 ? generateMerkleRoot(regularAddrs) : "0x" + "0".repeat(64);
 
+      const txs = [];
       if (vipAddrs.length > 0) {
-        await writeContractAsync({
+        const vipTx = await writeContractAsync({
           address: contractAddress as `0x${string}`,
-          abi: CatcentNFTABI,
+          abi: typedCatcentNFTABI,
           functionName: "setVipMerkleRoot",
-          args: [vipMerkle.root],
+          args: [vipMerkleRoot],
         });
-        await setDoc(doc(db, "whitelists", "gtd"), { merkleRoot: vipMerkle.root, proofs: vipMerkle.proofs });
+        txs.push({ type: "VIP", hash: vipTx });
       }
       if (regularAddrs.length > 0) {
-        await writeContractAsync({
+        const regularTx = await writeContractAsync({
           address: contractAddress as `0x${string}`,
-          abi: CatcentNFTABI,
+          abi: typedCatcentNFTABI,
           functionName: "setRegularMerkleRoot",
-          args: [regularMerkle.root],
+          args: [regularMerkleRoot],
         });
-        await setDoc(doc(db, "whitelists", "fcfs"), { merkleRoot: regularMerkle.root, proofs: regularMerkle.proofs });
+        txs.push({ type: "Regular", hash: regularTx });
       }
 
-      toast.success("Whitelists updated successfully!", { position: "top-right", theme: "dark" });
+      toast.success(
+        <div role="alert" aria-live="assertive">
+          Whitelists updated successfully!{" "}
+          {txs.map((tx, index) => (
+            <a
+              key={index}
+              href={`https://testnet.monadexplorer.com/tx/${tx.hash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline text-cyan-300"
+            >
+              View {tx.type} Tx
+            </a>
+          ))}
+        </div>,
+        { position: "top-right", theme: "dark" }
+      );
     } catch (error: unknown) {
-      toast.error(`Failed to update whitelists: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
+      console.error("Error updating whitelists:", error);
+      const errorMessage =
+        error instanceof Error && error.message.includes("denied")
+          ? "Transaction rejected"
+          : "Failed to update whitelists";
+      toast.error(errorMessage, { position: "top-right", theme: "dark" });
     }
   };
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-cyan-300 font-poppins p-4 sm:p-6 md:p-8">
-      <ToastContainer theme="dark" aria-live="polite" />
+      <ToastContainer theme="dark" position="top-right" aria-live="polite" />
       <div className="container mx-auto max-w-7xl">
         <h1 className="text-3xl md:text-4xl font-extrabold text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500 mb-8">
           Catcent NFT Admin Panel
@@ -318,7 +463,16 @@ export default function Admin() {
         ) : !isOwner ? (
           <p className="text-center text-red-400">You are not the contract owner.</p>
         ) : chain?.id !== monadTestnet.id ? (
-          <p className="text-center text-red-400">Please switch to Monad Testnet.</p>
+          <div className="text-center">
+            <p className="text-red-400">Please switch to Monad Testnet.</p>
+            <button
+              onClick={() => switchChain({ chainId: monadTestnet.id })}
+              className="mt-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-2 rounded-lg text-base font-semibold transition-all duration-300 focus:ring-2 focus:ring-yellow-500 transform hover:scale-105"
+              aria-label="Switch to Monad Testnet"
+            >
+              Switch Network
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Phase States */}
@@ -331,8 +485,9 @@ export default function Admin() {
                     onClick={() => handleSetPhaseState("vip", !isVipWhitelistMintActive)}
                     disabled={isPending}
                     className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
-                      isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
+                      isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700 transform hover:scale-105"
                     }`}
+                    aria-label={isVipWhitelistMintActive ? "Deactivate VIP Whitelist" : "Activate VIP Whitelist"}
                   >
                     {isPending ? "Processing..." : isVipWhitelistMintActive ? "Deactivate VIP" : "Activate VIP"}
                   </button>
@@ -343,8 +498,9 @@ export default function Admin() {
                     onClick={() => handleSetPhaseState("regular", !isRegularWhitelistMintActive)}
                     disabled={isPending}
                     className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
-                      isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
+                      isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700 transform hover:scale-105"
                     }`}
+                    aria-label={isRegularWhitelistMintActive ? "Deactivate Regular Whitelist" : "Activate Regular Whitelist"}
                   >
                     {isPending ? "Processing..." : isRegularWhitelistMintActive ? "Deactivate Regular" : "Activate Regular"}
                   </button>
@@ -355,8 +511,9 @@ export default function Admin() {
                     onClick={() => handleSetPhaseState("public", !isPublicMintActive)}
                     disabled={isPending}
                     className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
-                      isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
+                      isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700 transform hover:scale-105"
                     }`}
+                    aria-label={isPublicMintActive ? "Deactivate Public Mint" : "Activate Public Mint"}
                   >
                     {isPending ? "Processing..." : isPublicMintActive ? "Deactivate Public" : "Activate Public"}
                   </button>
@@ -367,8 +524,9 @@ export default function Admin() {
                     onClick={() => handleSetPhaseState("paused", !isPaused)}
                     disabled={isPending}
                     className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
-                      isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
+                      isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700 transform hover:scale-105"
                     }`}
+                    aria-label={isPaused ? "Unpause Contract" : "Pause Contract"}
                   >
                     {isPending ? "Processing..." : isPaused ? "Unpause Contract" : "Pause Contract"}
                   </button>
@@ -377,8 +535,9 @@ export default function Admin() {
                   onClick={syncPhaseStates}
                   disabled={isPending}
                   className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
-                    isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
+                    isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700 transform hover:scale-105"
                   }`}
+                  aria-label="Sync Phase States"
                 >
                   {isPending ? "Processing..." : "Sync Phase States"}
                 </button>
@@ -398,7 +557,8 @@ export default function Admin() {
                     }
                     showTimeSelect
                     dateFormat="Pp"
-                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300"
+                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    aria-label="VIP Start Time"
                   />
                   <p className="text-xs text-gray-400 mt-1">
                     {vipStartTime ? new Date(parseInt(vipStartTime) * 1000).toUTCString() : "Not set"}
@@ -413,7 +573,8 @@ export default function Admin() {
                     }
                     showTimeSelect
                     dateFormat="Pp"
-                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300"
+                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    aria-label="VIP End Time"
                   />
                   <p className="text-xs text-gray-400 mt-1">
                     {vipEndTime ? new Date(parseInt(vipEndTime) * 1000).toUTCString() : "Not set"}
@@ -428,7 +589,8 @@ export default function Admin() {
                     }
                     showTimeSelect
                     dateFormat="Pp"
-                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300"
+                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    aria-label="Regular Start Time"
                   />
                   <p className="text-xs text-gray-400 mt-1">
                     {regularStartTime ? new Date(parseInt(regularStartTime) * 1000).toUTCString() : "Not set"}
@@ -443,7 +605,8 @@ export default function Admin() {
                     }
                     showTimeSelect
                     dateFormat="Pp"
-                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300"
+                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    aria-label="Regular End Time"
                   />
                   <p className="text-xs text-gray-400 mt-1">
                     {regularEndTime ? new Date(parseInt(regularEndTime) * 1000).toUTCString() : "Not set"}
@@ -458,7 +621,8 @@ export default function Admin() {
                     }
                     showTimeSelect
                     dateFormat="Pp"
-                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300"
+                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    aria-label="Public Start Time"
                   />
                   <p className="text-xs text-gray-400 mt-1">
                     {publicStartTime ? new Date(parseInt(publicStartTime) * 1000).toUTCString() : "Not set"}
@@ -473,7 +637,8 @@ export default function Admin() {
                     }
                     showTimeSelect
                     dateFormat="Pp"
-                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300"
+                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    aria-label="Public End Time"
                   />
                   <p className="text-xs text-gray-400 mt-1">
                     {publicEndTime ? new Date(parseInt(publicEndTime) * 1000).toUTCString() : "Not set"}
@@ -483,8 +648,9 @@ export default function Admin() {
                   onClick={handleSetPhaseTimes}
                   disabled={isPending}
                   className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
-                    isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
+                    isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700 transform hover:scale-105"
                   }`}
+                  aria-label="Update Phase Times"
                 >
                   {isPending ? "Processing..." : "Update Phase Times"}
                 </button>
@@ -502,15 +668,17 @@ export default function Admin() {
                     step="0.01"
                     value={mintPrice}
                     onChange={(e) => setMintPrice(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300"
+                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    aria-label="Mint Price"
                   />
                 </div>
                 <button
                   onClick={handleSetMintPrice}
                   disabled={isPending}
                   className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
-                    isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
+                    isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700 transform hover:scale-105"
                   }`}
+                  aria-label="Update Mint Price"
                 >
                   {isPending ? "Processing..." : "Update Mint Price"}
                 </button>
@@ -526,27 +694,36 @@ export default function Admin() {
                   <textarea
                     value={vipAddresses}
                     onChange={(e) => setVipAddresses(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300"
+                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
                     rows={4}
                     placeholder="0xAddress1,0xAddress2,..."
+                    aria-label="VIP Whitelist Addresses"
                   />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Total VIP Addresses: {vipAddresses.split(",").filter((addr) => /^0x[a-fA-F0-9]{40}$/.test(addr.trim())).length}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm">Regular Whitelist Addresses (comma-separated)</label>
                   <textarea
                     value={regularAddresses}
                     onChange={(e) => setRegularAddresses(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300"
+                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
                     rows={4}
                     placeholder="0xAddress1,0xAddress2,..."
+                    aria-label="Regular Whitelist Addresses"
                   />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Total Regular Addresses: {regularAddresses.split(",").filter((addr) => /^0x[a-fA-F0-9]{40}$/.test(addr.trim())).length}
+                  </p>
                 </div>
                 <button
                   onClick={handleSetWhitelists}
                   disabled={isPending}
                   className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
-                    isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700"
+                    isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700 transform hover:scale-105"
                   }`}
+                  aria-label="Update Whitelists"
                 >
                   {isPending ? "Processing..." : "Update Whitelists"}
                 </button>
@@ -558,8 +735,3 @@ export default function Admin() {
     </main>
   );
 }
-
-
-
-
-
