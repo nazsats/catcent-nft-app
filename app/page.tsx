@@ -505,10 +505,10 @@ export default function Home() {
     <header className="flex flex-col justify-center items-center text-center">
       <div className="flex items-center justify-center space-x-4">
         <Image
-          src="/catcent-logo.png"
+          src="/logo.jpg"
           alt="Catcent Logo"
-          width={64}
-          height={64}
+          width={120}
+          height={120}
           className="rounded-full border-4 border-purple-600"
           unoptimized
           onError={(e) => {
@@ -518,7 +518,7 @@ export default function Home() {
           }}
         />
         <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500 drop-shadow-lg">
-          Catcents
+          
         </h1>
       </div>
     </header>
