@@ -81,16 +81,12 @@ export default function Admin() {
     }
   }, [address, owner, isConnected]);
 
-  // Generate Merkle tree and proofs
+  // Generate Merkle tree and root
   const generateMerkleTree = (addresses: string[]) => {
     const leaves = addresses.map((addr) => keccak256(addr.toLowerCase()));
     const tree = new MerkleTree(leaves, keccak256, { sortPairs: true });
     const root = tree.getHexRoot();
-    const proofs: { [key: string]: string[] } = {};
-    addresses.forEach((addr) => {
-      proofs[addr.toLowerCase()] = tree.getHexProof(keccak256(addr.toLowerCase()));
-    });
-    return { root, proofs };
+    return { root, proofs: {} }; // Proofs not stored, generated on-demand
   };
 
   // Handle pause/unpause
@@ -303,30 +299,45 @@ export default function Admin() {
         return;
       }
 
-      const vipMerkle = vipAddrs.length > 0 ? generateMerkleTree(vipAddrs) : { root: "0x", proofs: {} };
-      const regularMerkle = regularAddrs.length > 0 ? generateMerkleTree(regularAddrs) : { root: "0x", proofs: {} };
+      const maxAddresses = 10000; // Adjust as needed
+      if (vipAddrs.length > maxAddresses || regularAddrs.length > maxAddresses) {
+        toast.error(`Too many addresses. Maximum allowed is ${maxAddresses}.`, { position: "top-right", theme: "dark" });
+        return;
+      }
 
-      if (vipAddrs.length > 0) {
+      const batchSize = 1000; // Store 1,000 addresses per document (~42 KB)
+
+      const saveAddresses = async (addresses: string[], type: "gtd" | "fcfs") => {
+        if (addresses.length === 0) return;
+        // Generate Merkle root
+        const merkle = generateMerkleTree(addresses);
+        // Update Merkle root on-chain
         await writeContractAsync({
           address: contractAddress as `0x${string}`,
           abi: CatcentNFTABI,
-          functionName: "setVipMerkleRoot",
-          args: [vipMerkle.root],
+          functionName: type === "gtd" ? "setVipMerkleRoot" : "setRegularMerkleRoot",
+          args: [merkle.root],
         });
-        await setDoc(doc(db, "whitelists", "gtd"), { merkleRoot: vipMerkle.root, proofs: vipMerkle.proofs });
-      }
-      if (regularAddrs.length > 0) {
-        await writeContractAsync({
-          address: contractAddress as `0x${string}`,
-          abi: CatcentNFTABI,
-          functionName: "setRegularMerkleRoot",
-          args: [regularMerkle.root],
-        });
-        await setDoc(doc(db, "whitelists", "fcfs"), { merkleRoot: regularMerkle.root, proofs: regularMerkle.proofs });
-      }
+        // Split addresses into batches for Firestore
+        const batches = [];
+        for (let i = 0; i < addresses.length; i += batchSize) {
+          batches.push(addresses.slice(i, i + batchSize));
+        }
+        // Write each batch to Firestore
+        for (let i = 0; i < batches.length; i++) {
+          await setDoc(doc(db, "whitelists", `${type}_addresses_batch_${i + 1}`), {
+            merkleRoot: merkle.root,
+            addresses: batches[i],
+          });
+        }
+      };
+
+      if (vipAddrs.length > 0) await saveAddresses(vipAddrs, "gtd");
+      if (regularAddrs.length > 0) await saveAddresses(regularAddrs, "fcfs");
 
       toast.success("Whitelists updated successfully!", { position: "top-right", theme: "dark" });
     } catch (error: unknown) {
+      console.error("Whitelist update error:", error);
       toast.error(`Failed to update whitelists: ${(error as Error).message}`, { position: "top-right", theme: "dark" });
     }
   };
@@ -558,23 +569,28 @@ export default function Admin() {
               <h2 className="text-xl font-semibold text-yellow-200 mb-4">Whitelists</h2>
               <div className="flex flex-col gap-4">
                 <div>
-                  <label className="block text-sm">VIP Whitelist Addresses (GTD, comma-separated)</label>
-                  <textarea
-                    value={vipAddresses}
-                    onChange={(e) => setVipAddresses(e.target.value)}
+                  <label className="block text-sm">Upload Whitelist File (JSON)</label>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          try {
+                            const text = event.target?.result as string;
+                            const json = JSON.parse(text);
+                            setVipAddresses(json.vipAddresses?.join(",") || "");
+                            setRegularAddresses(json.regularAddresses?.join(",") || "");
+                          } catch (error) {
+                            toast.error("Invalid JSON file.", { position: "top-right", theme: "dark" });
+                          }
+                        };
+                        reader.readAsText(file);
+                      }
+                    }}
                     className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300"
-                    rows={4}
-                    placeholder="0xAddress1,0xAddress2,..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm">Regular Whitelist Addresses (FCFS, comma-separated)</label>
-                  <textarea
-                    value={regularAddresses}
-                    onChange={(e) => setRegularAddresses(e.target.value)}
-                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300"
-                    rows={4}
-                    placeholder="0xAddress1,0xAddress2,..."
                   />
                 </div>
                 <button
