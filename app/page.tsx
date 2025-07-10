@@ -27,6 +27,7 @@ export default function Home() {
   const [regularMerkleProof, setRegularMerkleProof] = useState<string[]>([]);
   const [isFetchingProofs, setIsFetchingProofs] = useState(false);
   const [currentPhase, setCurrentPhase] = useState<string>("");
+  const [imageError, setImageError] = useState(false);
 
   // Define contract calls
   const contractCalls = [
@@ -52,6 +53,14 @@ export default function Home() {
     contracts: contractCalls,
     query: { staleTime: 30_000, retry: 3, retryDelay: 1000, enabled: true },
   });
+
+  // Log contract errors
+  useEffect(() => {
+    if (contractError) {
+      console.error("Contract error:", contractError);
+      toast.error("Failed to load contract data", { position: "top-right", theme: "dark" });
+    }
+  }, [contractError]);
 
   // Extract contract data with explicit fallbacks
   const [
@@ -209,12 +218,18 @@ export default function Home() {
      (isPublicPhaseActive && isPublicMintActive))
   );
 
-  const { data: gasEstimate, error: gasError } = useEstimateGas({
+  const { data: gasEstimate } = useEstimateGas({
     to: contractAddress as `0x${string}`,
     data: mintData,
     value: mintPrice ? BigInt(mintPrice.toString()) * BigInt(numTokens) : undefined,
     query: {
       enabled: isGasEstimationEnabled,
+      onError(error) {
+        const errorMessage = error instanceof Error && /already minted/i.test(error.message)
+          ? "You've already claimed your whitelist mint."
+          : "Could not estimate gas for minting.";
+        toast.error(errorMessage, { position: "top-right", theme: "dark" });
+      },
     },
   });
 
@@ -323,7 +338,7 @@ export default function Home() {
       "Not VIP whitelisted": "You are not VIP whitelisted.",
       "Not whitelisted for Regular phase": "You are not whitelisted for the Regular phase.",
       "VIP whitelist already minted": "You have already minted in the VIP phase.",
-      "Regular whitelist already minted": "You have already minted in the Regular phase.",
+      "Regular whitelist already minted": "You've already claimed your whitelist mint.",
       "Minting not active": "Minting is not active. Check phase times.",
       "Contract is paused": "Minting is paused.",
       "network": "Network error. Please check your connection.",
@@ -460,7 +475,22 @@ export default function Home() {
     (isRegularPhaseActive && isRegularWhitelistMintActive && isRegularEligible) ||
     (isPublicPhaseActive && isPublicMintActive && isPublicEligible)
   );
-  const isMintButtonDisabled: boolean = isPending || isPaused || !isEligible || Boolean(gasError);
+  const isMintButtonDisabled: boolean = isPending || isPaused || !isEligible;
+
+  // Handle loading state to prevent continuous loading
+  if (isLoading || isFetchingProofs) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-cyan-300 font-poppins p-4 sm:p-6 md:p-8 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-300">Loading...</p>
+          <svg className="animate-spin h-8 w-8 mx-auto mt-4 text-cyan-300" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          </svg>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-cyan-300 font-poppins p-4 sm:p-6 md:p-8">
@@ -478,8 +508,9 @@ export default function Home() {
                 className="rounded-full border-4 border-purple-600"
                 unoptimized
                 onError={(e) => {
-                  console.error("Logo load failed");
-                  e.currentTarget.src = "https://via.placeholder.com/64";
+                  console.error("Logo image load failed");
+                  e.currentTarget.src = "/images/placeholder.png";
+                  e.currentTarget.onerror = null;
                 }}
               />
               <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-cyan-500 drop-shadow-lg">
@@ -536,14 +567,21 @@ export default function Home() {
           {/* Left Section: NFT Image */}
           <section className="order-1 flex justify-center items-center md:items-start animate-slide-in-left">
             <div className="relative group max-w-md w-full">
-<img
-  src="/nft-images/catcent.png"
-  alt="Catcent NFT"
-  width={500}
-  height={500}
-  className="w-full rounded-2xl shadow-2xl border-4 border-gradient-to-r from-purple-600 to-cyan-500"
-/>
-
+              <Image
+                src={imageError ? "/images/placeholder.png" : "/nft-images/catcent.png"}
+                alt="Catcent NFT"
+                width={500}
+                height={500}
+                className="w-full rounded-2xl shadow-2xl border-4 border-gradient-to-r from-purple-600 to-cyan-500 group-hover:scale-105 transition-transform duration-300"
+                priority
+                unoptimized
+                onError={(e) => {
+                  console.error("NFT image load failed");
+                  setImageError(true);
+                  e.currentTarget.src = "/images/placeholder.png";
+                  e.currentTarget.onerror = null;
+                }}
+              />
               <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-500 opacity-0 group-hover:opacity-20 rounded-2xl transition-opacity duration-300" />
             </div>
           </section>
@@ -552,10 +590,8 @@ export default function Home() {
           <section className="order-3 md:order-2 flex flex-col gap-6 items-center animate-slide-in-up">
             <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
               <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Phases</h3>
-              {isLoading ? (
-                <p className="text-center text-gray-300">Loading mint phases...</p>
-              ) : contractError ? (
-                <p className="text-center text-red-400">Error: {contractError.message}</p>
+              {contractError ? (
+                <p className="text-center text-red-400">Error loading contract data. Please try again later.</p>
               ) : (
                 <div className="flex flex-col gap-3">
                   {/* Active & Purring */}
@@ -658,14 +694,8 @@ export default function Home() {
             {isConnected && (
               <div className="w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
                 <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Your NFT</h3>
-                {isLoading || isFetchingProofs ? (
-                  <p className="text-center text-gray-300">
-                    Loading contract data...
-                    <svg className="animate-spin h-5 w-5 mx-auto mt-2" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                    </svg>
-                  </p>
+                {contractError ? (
+                  <p className="text-center text-red-400">Error loading contract data. Please try again later.</p>
                 ) : (
                   <div className="flex flex-col items-center gap-3">
                     <p className="text-sm text-cyan-300">
@@ -677,16 +707,6 @@ export default function Home() {
                     {userBalance && (
                       <p className="text-sm text-cyan-300">
                         Your Balance: <span className="font-semibold text-yellow-200">{(Number(userBalance.value) / 1e18).toFixed(4)} MONAD</span>
-                      </p>
-                    )}
-                    {gasEstimate && !gasError && (
-                      <p className="text-xs text-gray-400">
-                        Estimated Gas: {(Number(gasEstimate) / 1e18).toFixed(6)} MONAD
-                      </p>
-                    )}
-                    {gasError && (
-                      <p className="text-xs text-red-400">
-                        Gas estimation failed: {gasError.message}
                       </p>
                     )}
                     {Number(totalSupply) >= Number(maxSupply) ? (
@@ -780,8 +800,8 @@ export default function Home() {
             {/* Mint Progress */}
             <div className="order-5 w-full max-w-md bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
               <h3 className="text-xl font-semibold text-center text-yellow-200 mb-4">Mint Progress</h3>
-              {isLoading ? (
-                <p className="text-center text-gray-300">Loading mint status...</p>
+              {contractError ? (
+                <p className="text-center text-red-400">Error loading contract data. Please try again later.</p>
               ) : (
                 <div className="flex flex-col items-center gap-3">
                   <p className="text-sm text-cyan-300">
