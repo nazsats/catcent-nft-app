@@ -218,20 +218,24 @@ export default function Home() {
      (isPublicPhaseActive && isPublicMintActive))
   );
 
-  const { data: gasEstimate } = useEstimateGas({
+  const { data: gasEstimate, error: gasError } = useEstimateGas({
     to: contractAddress as `0x${string}`,
     data: mintData,
     value: mintPrice ? BigInt(mintPrice.toString()) * BigInt(numTokens) : undefined,
     query: {
       enabled: isGasEstimationEnabled,
-      onError: (error: Error) => {
-        const msg = /already minted/i.test(error.message)
-          ? "You've already claimed your whitelist mint."
-          : "Could not estimate gas for minting.";
-        toast.error(msg, { position: "top-right", theme: "dark" });
-      },
     },
   });
+
+  // Handle gas estimation errors
+  useEffect(() => {
+    if (gasError) {
+      const msg = /already minted/i.test(gasError.message)
+        ? "You've already claimed your whitelist mint."
+        : "Could not estimate gas for minting.";
+      toast.error(msg, { position: "top-right", theme: "dark" });
+    }
+  }, [gasError]);
 
   // Prompt network switch on wrong network
   useEffect(() => {
@@ -648,7 +652,7 @@ export default function Home() {
                       </span>
                       <span className="text-lg font-bold text-cyan-200">FCFS</span>
                     </div>
-                    <span className={`text-sm font-semibold ${isRegularEligible ? "text-green-400" : Number(regularWhitelistMinted) > 0 ? "text-red-400" : "text-red-400"}`}>
+                    <span className={`text-sm font-semibold ${isRegularEligible ? "text-green-400" : Number(regularWhitelistMinted) > 0 ? "text-green-400" : "text-red-400"}`}>
                       {Number(regularWhitelistMinted) > 0 ? "Minted" : isRegularEligible ? "Eligible" : "Not Eligible"}
                     </span>
                   </div>
