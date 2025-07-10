@@ -536,18 +536,14 @@ export default function Home() {
           {/* Left Section: NFT Image */}
           <section className="order-1 flex justify-center items-center md:items-start animate-slide-in-left">
             <div className="relative group max-w-md w-full">
-              <Image
-                src="/nft-images/catcent.png"
-                alt="Catcent NFT"
-                width={500}
-                height={500}
-                className="w-full rounded-2xl shadow-2xl border-4 border-gradient-to-r from-purple-600 to-cyan-500 group-hover:scale-105 transition-transform duration-300"
-                priority
-                onError={(e) => {
-                  console.error("NFT image load failed");
-                  e.currentTarget.src = "https://via.placeholder.com/500";
-                }}
-              />
+<img
+  src="/nft-images/catcent.png"
+  alt="Catcent NFT"
+  width={500}
+  height={500}
+  className="w-full rounded-2xl shadow-2xl border-4 border-gradient-to-r from-purple-600 to-cyan-500"
+/>
+
               <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-500 opacity-0 group-hover:opacity-20 rounded-2xl transition-opacity duration-300" />
             </div>
           </section>
