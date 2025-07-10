@@ -537,7 +537,7 @@ export default function Home() {
           <section className="order-1 flex justify-center items-center md:items-start animate-slide-in-left">
             <div className="relative group max-w-md w-full">
               <Image
-                src="https://gateway.pinata.cloud/ipfs/Qmf323ezwBzjbPspWnQKaDfVzFGbTBN47soSu4hkUtRAcZ"
+                src="/nft-images/catcent.png"
                 alt="Catcent NFT"
                 width={500}
                 height={500}
