@@ -29,6 +29,7 @@ export default function Admin() {
   const [mintPrice, setMintPrice] = useState("3.55"); // Matches contract default
   const [vipAddresses, setVipAddresses] = useState(wallets.vipAddresses.join(",")); // From wallets.json
   const [regularAddresses, setRegularAddresses] = useState(wallets.regularAddresses.join(",")); // From wallets.json
+  const [baseURI, setBaseURI] = useState("https://teal-characteristic-reindeer-501.mypinata.cloud/ipfs/bafybeifkvkpmfer6uj5opika3zi6jp3jwjsxrbvquotn7ki7hgw75hojpy/"); // New metadata CID
   const [isOwner, setIsOwner] = useState(false);
 
   // Check if connected wallet is owner
@@ -37,6 +38,13 @@ export default function Admin() {
     abi: typedCatcentNFTABI,
     functionName: "owner",
   }) as { data: `0x${string}` | undefined; error: Error | null };
+
+  // Read contract balance
+  const { data: contractBalance } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: typedCatcentNFTABI,
+    functionName: "getBalance",
+  });
 
   useEffect(() => {
     if (ownerError) {
@@ -451,6 +459,106 @@ export default function Admin() {
     }
   };
 
+  // Handle baseURI update
+  const handleSetBaseURI = async () => {
+    if (!isOwner) {
+      toast.error("Only the contract owner can perform this action.", { position: "top-right", theme: "dark" });
+      return;
+    }
+    if (chain?.id !== monadTestnet.id) {
+      try {
+        await switchChain({ chainId: monadTestnet.id });
+        toast.info("Switched to Monad Testnet", { position: "top-right", theme: "dark" });
+      } catch {
+        toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
+        return;
+      }
+    }
+    if (!baseURI) {
+      toast.error("Base URI cannot be empty.", { position: "top-right", theme: "dark" });
+      return;
+    }
+    try {
+      const tx = await writeContractAsync({
+        address: contractAddress as `0x${string}`,
+        abi: typedCatcentNFTABI,
+        functionName: "setBaseURI",
+        args: [baseURI],
+      });
+      toast.success(
+        <div role="alert" aria-live="assertive">
+          Base URI updated successfully!{" "}
+          <a
+            href={`https://testnet.monadexplorer.com/tx/${tx}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline text-cyan-300"
+          >
+            View on Explorer
+          </a>
+        </div>,
+        { position: "top-right", theme: "dark" }
+      );
+    } catch (error: unknown) {
+      console.error("Error updating base URI:", error);
+      const errorMessage =
+        error instanceof Error && error.message.includes("denied")
+          ? "Transaction rejected"
+          : "Failed to update base URI";
+      toast.error(errorMessage, { position: "top-right", theme: "dark" });
+    }
+  };
+
+  // Handle withdraw MONAD
+  const handleWithdraw = async () => {
+    if (!isOwner) {
+      toast.error("Only the contract owner can perform this action.", { position: "top-right", theme: "dark" });
+      return;
+    }
+    if (chain?.id !== monadTestnet.id) {
+      try {
+        await switchChain({ chainId: monadTestnet.id });
+        toast.info("Switched to Monad Testnet", { position: "top-right", theme: "dark" });
+      } catch {
+        toast.error("Please switch to Monad Testnet.", { position: "top-right", theme: "dark" });
+        return;
+      }
+    }
+    if (Number(contractBalance) === 0) {
+      toast.error("Contract balance is 0.", { position: "top-right", theme: "dark" });
+      return;
+    }
+    try {
+      const tx = await writeContractAsync({
+        address: contractAddress as `0x${string}`,
+        abi: typedCatcentNFTABI,
+        functionName: "withdraw",
+        args: [],
+      });
+      toast.success(
+        <div role="alert" aria-live="assertive">
+          Withdrawal successful!{" "}
+          <a
+            href={`https://testnet.monadexplorer.com/tx/${tx}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline text-cyan-300"
+          >
+            View on Explorer
+          </a>
+        </div>,
+        { position: "top-right", theme: "dark" }
+      );
+    } catch (error: unknown) {
+      console.error("Error withdrawing MONAD:", error);
+      const errorMessage =
+        error instanceof Error && error.message.includes("denied")
+          ? "Transaction rejected"
+          : "Failed to withdraw MONAD";
+      toast.error(errorMessage, { position: "top-right", theme: "dark" });
+    }
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-cyan-300 font-poppins p-4 sm:p-6 md:p-8">
       <ToastContainer theme="dark" position="top-right" aria-live="polite" />
@@ -726,6 +834,55 @@ export default function Admin() {
                   aria-label="Update Whitelists"
                 >
                   {isPending ? "Processing..." : "Update Whitelists"}
+                </button>
+              </div>
+            </div>
+
+            {/* Base URI */}
+            <div className="bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
+              <h2 className="text-xl font-semibold text-yellow-200 mb-4">Base URI</h2>
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-sm">Base URI</label>
+                  <input
+                    value={baseURI}
+                    onChange={(e) => setBaseURI(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-gray-800 border-2 border-purple-600 text-cyan-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="https://teal-characteristic-reindeer-501.mypinata.cloud/ipfs/..."
+                    aria-label="Base URI"
+                  />
+                </div>
+                <button
+                  onClick={handleSetBaseURI}
+                  disabled={isPending}
+                  className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
+                    isPending ? "opacity-50 cursor-not-allowed" : "hover:from-purple-700 hover:to-cyan-700 transform hover:scale-105"
+                  }`}
+                  aria-label="Update Base URI"
+                >
+                  {isPending ? "Processing..." : "Update Base URI"}
+                </button>
+              </div>
+            </div>
+
+            {/* Withdraw MONAD */}
+            <div className="bg-gray-900 bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border-2 border-purple-600">
+              <h2 className="text-xl font-semibold text-yellow-200 mb-4">Withdraw MONAD</h2>
+              <div className="flex flex-col gap-4">
+                <div>
+                  <p>Contract Balance: {contractBalance ? (Number(contractBalance) / 1e18).toFixed(4) : "0"} MONAD</p>
+                </div>
+                <button
+                  onClick={handleWithdraw}
+                  disabled={isPending || Number(contractBalance) === 0}
+                  className={`w-full bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-4 py-2 rounded-lg mt-2 ${
+                    isPending || Number(contractBalance) === 0
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:from-purple-700 hover:to-cyan-700 transform hover:scale-105"
+                  }`}
+                  aria-label="Withdraw MONAD"
+                >
+                  {isPending ? "Processing..." : "Withdraw MONAD"}
                 </button>
               </div>
             </div>

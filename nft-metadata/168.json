@@ -1,6 +1,16 @@
 {
   "name": "Catcents #168",
   "description": "Your early Degen status from catcents.",
-  "image": "ipfs://bafybeifkljwudpvlfhtcq5qrmg54hw3qu57rhtwx4zchrdiqta33xrsl4i",
-  "attributes": []
+  "animation_url": "ipfs://bafybeifkljwudpvlfhtcq5qrmg54hw3qu57rhtwx4zchrdiqta33xrsl4i/",
+  "image": "ipfs://bafybeialb7k5mnmvfdhtem3ssp7qnqeffkezb3se4dxoamhgqixzyvvu7u/",
+  "external_url": "https://catcents.io",
+  "attributes": [],
+  "properties": {
+    "files": [
+      {
+        "uri": "ipfs://bafybeifkljwudpvlfhtcq5qrmg54hw3qu57rhtwx4zchrdiqta33xrsl4i/168.mp4",
+        "type": "video/mp4"
+      }
+    ]
+  }
 }
