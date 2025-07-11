@@ -597,23 +597,9 @@ export default function Home() {
                 <p className="text-center text-red-400">Error loading contract data. Please try again later.</p>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {/* Active & Purring */}
-                  <div
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      isPaused ? "bg-red-800" : "bg-green-800"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-label={isPaused ? "Contract Paused" : "Contract Active"}>
-                        {isPaused ? <FaLock /> : <FaUnlock />}
-                      </span>
-                      <span className="text-lg font-bold text-cyan-200">Active & Purring</span>
-                    </div>
-                    <span className={`text-sm font-semibold ${isPaused ? "text-red-400" : "text-green-400"}`}>
-                      {isPaused ? "Paused" : "Active"}
-                    </span>
-                  </div>
-                  {/* VIP Whitelist */}
+
+
+                  {/* VIP Whitelist */} 
                   <div
                     className={`flex items-center justify-between p-3 rounded-lg ${
                       isVipEligible
@@ -952,3 +938,25 @@ export default function Home() {
     </main>
   );
 }
+
+
+
+
+
+
+  {/* Active & Purring */} 
+   //            <div
+   //                 className={`flex items-center justify-between p-3 rounded-lg ${
+   //                   isPaused ? "bg-red-800" : "bg-green-800"
+   //                 }`}
+   //               >
+   //                 <div className="flex items-center gap-2">
+   //                   <span className="text-xl" aria-label={isPaused ? "Contract Paused" : "Contract Active"}>
+   //                     {isPaused ? <FaLock /> : <FaUnlock />}
+   //                   </span>
+   //                   <span className="text-lg font-bold text-cyan-200">Active & Purring</span>
+   //                 </div>
+   //                 <span className={`text-sm font-semibold ${isPaused ? "text-red-400" : "text-green-400"}`}>
+   //                   {isPaused ? "Paused" : "Active"}
+   //                 </span>
+   //               </div> 
