@@ -1,14 +1,14 @@
 {
   "name": "Catcents #194",
   "description": "Your early Degen status from catcents.",
-  "animation_url": "ipfs://bafybeifkljwudpvlfhtcq5qrmg54hw3qu57rhtwx4zchrdiqta33xrsl4i/",
-  "image": "ipfs://bafybeialb7k5mnmvfdhtem3ssp7qnqeffkezb3se4dxoamhgqixzyvvu7u/",
+  "animation_url": "https://teal-characteristic-reindeer-501.mypinata.cloud/ipfs/bafybeifkljwudpvlfhtcq5qrmg54hw3qu57rhtwx4zchrdiqta33xrsl4i",
+  "image": "https://teal-characteristic-reindeer-501.mypinata.cloud/ipfs/bafybeialb7k5mnmvfdhtem3ssp7qnqeffkezb3se4dxoamhgqixzyvvu7u",
   "external_url": "https://catcents.io",
   "attributes": [],
   "properties": {
     "files": [
       {
-        "uri": "ipfs://bafybeifkljwudpvlfhtcq5qrmg54hw3qu57rhtwx4zchrdiqta33xrsl4i/194.mp4",
+        "uri": "https://teal-characteristic-reindeer-501.mypinata.cloud/ipfs/bafybeifkljwudpvlfhtcq5qrmg54hw3qu57rhtwx4zchrdiqta33xrsl4i",
         "type": "video/mp4"
       }
     ]

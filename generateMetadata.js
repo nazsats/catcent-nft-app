@@ -1,8 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 
-const videoCID = "bafybeifkljwudpvlfhtcq5qrmg54hw3qu57rhtwx4zchrdiqta33xrsl4i";
-const thumbnailCID = "bafybeialb7k5mnmvfdhtem3ssp7qnqeffkezb3se4dxoamhgqixzyvvu7u";
+const videoCID = "bafybeifkljwudpvlfhtcq5qrmg54hw3qu57rhtwx4zchrdiqta33xrsl4i"; // Correct CID for catcent.mp4
+const thumbnailCID = "bafybeialb7k5mnmvfdhtem3ssp7qnqeffkezb3se4dxoamhgqixzyvvu7u"; // Replace with CID of a PNG/JPEG thumbnail
 const outputDir = "./nft-metadata";
 
 if (!fs.existsSync(outputDir)) {
@@ -13,14 +13,14 @@ for (let i = 0; i < 3535; i++) {
   const metadata = {
     name: `Catcents #${i}`,
     description: "Your early Degen status from catcents.",
-    animation_url: `ipfs://${videoCID}/`,
-    image: `ipfs://${thumbnailCID}/`,
+    animation_url: `https://teal-characteristic-reindeer-501.mypinata.cloud/ipfs/${videoCID}`,
+    image: `https://teal-characteristic-reindeer-501.mypinata.cloud/ipfs/${thumbnailCID}`,
     external_url: "https://catcents.io",
     attributes: [],
     properties: {
       files: [
         {
-          uri: `ipfs://${videoCID}/${i}.mp4`,
+          uri: `https://teal-characteristic-reindeer-501.mypinata.cloud/ipfs/${videoCID}`,
           type: "video/mp4"
         }
       ]
