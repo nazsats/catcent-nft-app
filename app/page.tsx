@@ -931,6 +931,15 @@ export default function Home() {
               className="text-yellow-200 underline"
             >
               X
+            </a>{" "}
+            |{" "}
+            <a
+              href="https://magiceden.io/collections/monad-testnet/0xfa28a33f198dc84454881fbb14c9d69dea97efdb"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-yellow-200 underline"
+            >
+              MagiEden
             </a>
           </p>
         </footer>
